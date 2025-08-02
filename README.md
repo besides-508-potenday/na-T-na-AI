@@ -31,12 +31,12 @@
 
 ## 3. TEST sample (`app_mock.py`)
 - 상황 및 문제
-![상황 및 문제](images/sample1-1.png)
+![상황 및 문제](Images/sample1-1.png)
 <br>
 
 - 대화 흐름
-![대화1](images/sample1-3.png)
-![대화2](images/sample1-2.png)
+![대화1](Images/sample1-3.png)
+![대화2](Images/sample1-2.png)
 
 
 ## 4. To-Do
