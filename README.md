@@ -5,6 +5,10 @@
 
 <br>
 
+![대화1](Images/pipeline_init.png)
+
+<br>
+
 ## 2. API
 - FastAPI
 - Build Docker Image
@@ -40,13 +44,20 @@
 
 
 ## 4. To-Do
-1. AI
-- 성능 → 논의 후 방향 잡기
-- log 추가
-- 예외처리
+1️⃣ AI
+- [ ] Clova model test 
+    - [✔️] <sub><del>각 태스크 별 프롬프팅</del></sub>  
+    - [ ] TPS  
+    - [ ] Langsmith
+- [✔️] <sub><del>파이프라인 설계</del></sub>  
+- [ ] 성능(만족도) → 논의 후 방향 잡기
+- [ ] Debugging
+- [ ] Exception Handling
 
-2. API swagger
+2️⃣ API swagger
 
-3. Docker
+3️⃣ Docker Images build
 
-4. 배포
+4️⃣ 배포
+- [ ] AWS에 배포
+- [ ] TEST
