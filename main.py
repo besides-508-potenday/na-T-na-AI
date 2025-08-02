@@ -14,6 +14,20 @@ chat_init = ChatClovaX(
     api_key=os.environ["CLOVASTUDIO_API_KEY"]
 )
 
+chat = ChatClovaX(
+    model="HCX-007", # 모델명 입력 (기본값: HCX-005) 
+    temperature = 0.7,
+    max_completion_tokens = 1024,
+    api_key=os.environ["CLOVASTUDIO_API_KEY"],
+)
+
+chat_feedback = ChatClovaX(
+    model="HCX-007", # 모델명 입력 (기본값: HCX-005) 
+    temperature = 0.7,
+    max_completion_tokens = 2048,
+    api_key=os.environ["CLOVASTUDIO_API_KEY"],
+)
+
 # 상황 생성
 def generate_situation():
     system_message_situation = f"""You are an emotion-based chatbot that converses with T-type users who are not good at expressing their emotions.
@@ -89,13 +103,6 @@ def generate_questions(situation):
 
 
 
-chat = ChatClovaX(
-    model="HCX-007", # 모델명 입력 (기본값: HCX-005) 
-    temperature = 0.7,
-    max_completion_tokens = 1024,
-    api_key=os.environ["CLOVASTUDIO_API_KEY"],
-)
-
 
 def extract_json_from_response(response_text):
     """응답에서 JSON 부분을 추출하는 함수"""
@@ -170,6 +177,7 @@ def generate_response_with_question_and_scoring(conversation, questions):
 
     # conversation.append(ai)
 
+
 # 대화 마무리
 def final_reponse(conversation):
     system_message_closed = f"""You are an emotion-based chatbot that converses with T-type users who are not good at expressing their emotions.
@@ -209,13 +217,6 @@ def final_reponse(conversation):
     ai_response = json_str['statement']
     return ai_msg, score, ai_response
 
-
-chat_feedback = ChatClovaX(
-    model="HCX-007", # 모델명 입력 (기본값: HCX-005) 
-    temperature = 0.7,
-    max_completion_tokens = 2048,
-    api_key=os.environ["CLOVASTUDIO_API_KEY"],
-)
 
 def generate_feedback(conversation):
     total = ""
