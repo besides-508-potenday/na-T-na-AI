@@ -11,7 +11,8 @@ dependencies = [
     "langchain (>=0.3.27,<0.4.0)",
     "langchain-naver (>=0.1.0,<0.2.0)",
     "dotenv (>=0.9.9,<0.10.0)",
-    "streamlit (>=1.47.1,<2.0.0)"
+    "streamlit (>=1.47.1,<2.0.0)",
+    "matplotlib (>=3.10.5,<4.0.0)"
 ]
 
 

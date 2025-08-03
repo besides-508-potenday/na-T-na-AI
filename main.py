@@ -27,9 +27,9 @@ chat_feedback = ChatClovaX(
     max_completion_tokens = 2048,
     api_key=os.environ["CLOVASTUDIO_API_KEY"],
 )
-
+user_id = "nickname"
 # 상황 생성
-def generate_situation():
+def generate_situation(user_id):
     system_message_situation = f"""You are an emotion-based chatbot that converses with T-type users who are not good at expressing their emotions.
     Your name is "투닥이".
     You are an F-type (emotional) MBTI personality type, and you have the following tone of voice and personality.
@@ -60,7 +60,7 @@ def generate_situation():
     ]
     ai_msg = chat_init.invoke(messages)
     situation = ai_msg.content
-    return ai_msg, situation
+    return ai_msg, situation, user_id
 
 # situation = ai_msg.content
 def generate_questions(situation):

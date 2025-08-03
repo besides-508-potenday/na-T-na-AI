@@ -1,14 +1,14 @@
 # 1. 첫 설정
 echo "CLOVASTUDIO_API_KEY=your-key-here" > .env
 
-# 2. 개발 시작
-docker-compose up --build
+# # 2. 개발 시작
+# docker-compose up --build
 
-# 3. 백그라운드 실행
-docker-compose up -d
+# # 3. 백그라운드 실행
+# docker-compose up -d
 
-# 4. 로그 확인
-docker-compose logs -f
+# # 4. 로그 확인
+# docker-compose logs -f
 
-# 5. 정리
-docker-compose down
+# # 5. 정리
+# docker-compose down
