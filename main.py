@@ -148,11 +148,13 @@ class Situation(BaseModel):
     user_nickname: str
 
 class Conversation(BaseModel):
+    user_nickname: str
     conversation: List[str]
     quiz_list: List[str]
     current_distance: int
 
 class Feedback(BaseModel):
+    user_nickname: str
     conversation: List[str]
     current_distance: int
 # =============================================================================
@@ -196,6 +198,7 @@ async def situation(request: Situation):
 # 2. Conversaion
 @app.post("/conversation", response_class = JSONResponse)
 async def conversation(request: Conversation):
+    nickname = request.user_nickname
     conversation = request.conversation
     quiz_list = request.quiz_list
     current_distance = request.current_distance
@@ -210,6 +213,7 @@ async def conversation(request: Conversation):
 # 3. Feedback
 @app.post("/feedback", response_class = JSONResponse)
 async def feedback(request: Feedback):
+    nickname = request.user_nickname
     conversation = request.conversation
     current_distance = request.current_distance
     logger.info(f"Feedback Conversation: {conversation}")
