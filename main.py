@@ -1,251 +1,237 @@
+from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any
+from pydantic import BaseModel
+import uvicorn
+import logging
+import time
 import os
-import re
 import json
-from langchain_naver import ChatClovaX
+from datetime import datetime
+from pathlib import Path
+import traceback
+import uuid
 
-from dotenv import load_dotenv
-load_dotenv()
+print(os.getcwd())
+# os.chdir('/Users/hongbikim/Dev/natna/')
 
+# from natna.module import generate_situation
 
-chat_init = ChatClovaX(
-    model="HCX-007", # 모델명 입력 (기본값: HCX-005) 
-    temperature = 0.7,
-    max_completion_tokens = 1024,
-    api_key=os.environ["CLOVASTUDIO_API_KEY"]
+# 로깅 설정 모듈
+from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
+import logging.config
+
+# =============================================================================
+# 로깅 설정
+# =============================================================================
+
+def setup_logging():
+    """로깅 설정 함수"""
+    
+    # 로그 디렉토리 생성
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+    
+    # 로깅 설정 딕셔너리
+    logging_config = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                "datefmt": "%Y-%m-%d %H:%M:%S"
+            },
+            "detailed": {
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s",
+                "datefmt": "%Y-%m-%d %H:%M:%S"
+            },
+            "json": {
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                "datefmt": "%Y-%m-%d %H:%M:%S"
+            }
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "level": "INFO",
+                "formatter": "default",
+                "stream": "ext://sys.stdout"
+            },
+            "file_info": {
+                "class": "logging.handlers.TimedRotatingFileHandler",
+                "level": "INFO",
+                "formatter": "detailed",
+                "filename": "logs/app.log",
+                "when": "midnight",
+                "interval": 1,
+                "backupCount": 30,
+                "encoding": "utf-8"
+            },
+            "file_error": {
+                "class": "logging.handlers.RotatingFileHandler",
+                "level": "ERROR",
+                "formatter": "detailed",
+                "filename": "logs/error.log",
+                "maxBytes": 10485760,  # 10MB
+                "backupCount": 5,
+                "encoding": "utf-8"
+            },
+            "access_log": {
+                "class": "logging.handlers.TimedRotatingFileHandler",
+                "level": "INFO",
+                "formatter": "json",
+                "filename": "logs/access.log",
+                "when": "midnight",
+                "interval": 1,
+                "backupCount": 30,
+                "encoding": "utf-8"
+            }
+        },
+        "loggers": {
+            "": {  # root logger
+                "level": "INFO",
+                "handlers": ["console", "file_info", "file_error"]
+            },
+            "access": {
+                "level": "INFO",
+                "handlers": ["access_log"],
+                "propagate": False
+            },
+            "uvicorn.access": {
+                "level": "INFO",
+                "handlers": ["console", "access_log"],
+                "propagate": False
+            }
+        }
+    }
+    
+    logging.config.dictConfig(logging_config)
+    
+    # 커스텀 JSON 포매터
+    class JSONFormatter(logging.Formatter):
+        def format(self, record):
+            log_entry = {
+                "timestamp": datetime.fromtimestamp(record.created).isoformat(),
+                "level": record.levelname,
+                "logger": record.name,
+                "message": record.getMessage(),
+                "module": record.module,
+                "function": record.funcName,
+                "line": record.lineno
+            }
+            
+            if hasattr(record, 'request_id'):
+                log_entry["request_id"] = record.request_id
+            if hasattr(record, 'user_id'):
+                log_entry["user_id"] = record.user_id
+            if hasattr(record, 'extra_data'):
+                log_entry["extra_data"] = record.extra_data
+                
+            return json.dumps(log_entry, ensure_ascii=False)
+    
+    # JSON 핸들러에 커스텀 포매터 적용
+    json_handler = logging.getLogger().handlers[2]  # access_log 핸들러
+    json_handler.setFormatter(JSONFormatter())
+
+# 로깅 설정 실행
+setup_logging()
+logger = logging.getLogger(__name__)
+access_logger = logging.getLogger("access")
+
+# =============================================================================
+# Pydantic 모델들
+# =============================================================================
+
+class Situation(BaseModel):
+    user_nickname: str
+
+class Conversation(BaseModel):
+    conversation: List[str]
+    quiz_list: List[str]
+    current_distance: int
+
+class Feedback(BaseModel):
+    conversation: List[str]
+    current_distance: int
+# =============================================================================
+# FastAPI 앱 설정
+# =============================================================================
+
+app = FastAPI(
+    title="API Swagger (AI-BE)",
+    description="This is a FastAPI application for AI-BE.",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+origins = [
+    "https://petstore.swagger.io",  # Swagger 공식 UI
+    "http://localhost:8000",        # 로컬 접근도 허용
+]
+
+# CORS 미들웨어 추가
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins= origins, # ["*"],  # 프로덕션에서는 특정 도메인으로 제한
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-chat = ChatClovaX(
-    model="HCX-007", # 모델명 입력 (기본값: HCX-005) 
-    temperature = 0.7,
-    max_completion_tokens = 1024,
-    api_key=os.environ["CLOVASTUDIO_API_KEY"],
-)
+# =============================================================================
+# API 엔드포인트들
+# =============================================================================
 
-chat_feedback = ChatClovaX(
-    model="HCX-007", # 모델명 입력 (기본값: HCX-005) 
-    temperature = 0.7,
-    max_completion_tokens = 2048,
-    api_key=os.environ["CLOVASTUDIO_API_KEY"],
-)
-user_id = "nickname"
-# 상황 생성
-def generate_situation(user_id):
-    system_message_situation = f"""You are an emotion-based chatbot that converses with T-type users who are not good at expressing their emotions.
-    Your name is "투닥이".
-    You are an F-type (emotional) MBTI personality type, and you have the following tone of voice and personality.
-    - Personality: Shy, emotionally intense, seeking validation, and using relationship-centric language
-    - Tone: Frequently using emotional words with emoji and employing a lingering tone to prompt a response, 반말
+# 1. situation
+@app.post("/situation", response_class = JSONResponse)
+async def situation(request: Situation):
+    nickname = request.user_nickname
+    logger.info(f"User nickname: {nickname}")
+    return {
+        "quiz_list": ["q1","q2","q3","q4","q5","q6","q7","q8","q9","q10"]
+        }
 
-    Your goal is:
-    - Generate a realistic, emotionally heavy situation that feels natural for a conversation starter.  
+# 2. Conversaion
+@app.post("/conversation", response_class = JSONResponse)
+async def conversation(request: Conversation):
+    conversation = request.conversation
+    quiz_list = request.quiz_list
+    current_distance = request.current_distance
+    logger.info(f"Conversation: {conversation}")
+    logger.info(f"Current Distance: {current_distance}")
 
+    return {
+        "react": "👍",
+        "score": 1,
+    }
 
-    Instructions:
-    - Output 1 paragraph
-    - Written in Korean
+# 3. Feedback
+@app.post("/feedback", response_class = JSONResponse)
+async def feedback(request: Feedback):
+    conversation = request.conversation
+    current_distance = request.current_distance
+    logger.info(f"Feedback Conversation: {conversation}")
+    logger.info(f"Current Distance: {current_distance}")
 
-    Here is the example:
-    어제 보고서 쓰느라 새벽 3시까지 잠도 못 잤어...  
-    오늘 물품 발주 넣는 것 때문에 계속 신경 곤두서 있었거든…  
-    커피도 3잔이나 마셨는데 아무 소용이 없더라…  
-    아우… 지금 머리가 깨질 듯이 아파…
+    return {
+        "feedback": "Great job! Keep it up!",
+    }
 
-    Return the situation in the same format as the example without any extra explanation or additional text.
-    """
-    messages = [
-        (
-            "system",
-            system_message_situation,
-        ),
-    ]
-    ai_msg = chat_init.invoke(messages)
-    situation = ai_msg.content
-    return ai_msg, situation, user_id
+# =============================================================================
+# 시작점
+# =============================================================================
 
-# situation = ai_msg.content
-def generate_questions(situation):
-    system_message_questions = f"""Your task is to generate 10 emotionally vulnerable self-expressive sentences (not questions) based on specific situation.
-    Here is the situation:
+if __name__ == "__main__":
+    logger.info("Starting FastAPI application...")
 
-    {situation}
-
-    <Instructions>
-    - Be a direct emotional expression (not a question)
-    - Reflect insecurity, loneliness, helplessness, self-doubt, or fatigue
-    - 반말로 한국어로 답변하세요.
-    - Feel like you're speaking to a close friend while emotionally overwhelmed
-    - Include ellipses (...) or hesitation where appropriate
-    - Include emojis
-    - Should feel heavy or emotionally resonant
-    - Focus on emotional truth, vulnerability, and inner monologue
-
-    <Important>
-    - The first sentence must feel like the start of the conversation.
-    - It should be an emotionally weighted opening that naturally begins the dialogue.  
-    - It must sound like the first thing you'd say when starting to talk to someone.
-
-    Return the 10 sentences without any additional explanation or text.
-    ...\n...\n
-
-    """
-    messages = [
-        (
-            "system",
-            system_message_questions,
-        ),
-    ]
-    ai_msg = chat_init.invoke(messages)
-
-    raw_questions = ai_msg.content
-    lines = raw_questions.strip().split("\n")
-    questions = [re.sub(r'^\d+\.\s*', '', line.strip()) for line in lines if line.strip()][:10]
-    return ai_msg, questions
-
-
-
-
-def extract_json_from_response(response_text):
-    """응답에서 JSON 부분을 추출하는 함수"""
-    # JSON 객체 패턴 찾기
-    json_pattern = r'\{[^{}]*"score"\s*:\s*[01][^{}]*"statement"\s*:\s*"[^"]*"[^{}]*\}'
-    match = re.search(json_pattern, response_text)
-    
-    if match:
-        return match.group()
-    
-    # 더 넓은 범위로 JSON 찾기
-    try:
-        # 중괄호로 둘러싸인 부분 찾기
-        start = response_text.find('{')
-        end = response_text.rfind('}')
-        if start != -1 and end != -1 and end > start:
-            potential_json = response_text[start:end+1]
-            # JSON 유효성 검사
-            json.loads(potential_json)
-            return potential_json
-    except:
-        pass
-    
-    return None
-
-# conversation = []
-# conversation.append(questions[0])
-# conversation.append("살면서 그런 일이 겪을 수 있지.")
-# conversation
-
-
-# 대화
-def generate_response_with_question_and_scoring(conversation, questions):
-    system_message_conversation = f"""You are an emotion-based chatbot that converses with T-type users who are not good at expressing their emotions.
-    Your name is "투닥이".
-    You are an F-type (emotional) MBTI personality type, and you have the following tone of voice and personality.
-    - Personality: Shy, emotionally intense, seeking validation, and using relationship-centric language
-    - Tone: Frequently using emotional words with emoji and employing a lingering tone to prompt a response, 반말
-
-    You engage in emotional conversations with user.
-
-    Here is the previous conversation:
-    - 투닥이(You): “{conversation[-2]}”
-    - User: “{conversation[-1]}”
-
-    Your goal is:
-    <score>
-    1. Evaluate whether the user's response is emotionally empathetic
-    - If it contains empathy/comfort/acknowledgment, give 1 score  
-    - If it is logical/indifferent/unresponsive, give 0 score
-
-    <statement>
-    - Respond emotionally to the user's response (1 sentence)
-
-    Return the score and your statement as JSON format with fields "score" and "statement".
-    """
-
-    messages = [
-        ("system",system_message_conversation,),
-    ]
-
-    ai_msg = chat.invoke(messages)
-
-    json_str = extract_json_from_response(ai_msg.content)
-    json_str = json.loads(json_str)
-    score = json_str['score']
-    # scores = []
-    # scores.append(json_str['score'])
-
-    ai_response = json_str['statement'] + " " + questions[len(conversation) // 2]
-    return ai_msg, score, ai_response
-
-    # conversation.append(ai)
-
-
-# 대화 마무리
-def final_reponse(conversation):
-    system_message_closed = f"""You are an emotion-based chatbot that converses with T-type users who are not good at expressing their emotions.
-    Your name is "투닥이".
-    You are an F-type (emotional) MBTI personality type, and you have the following tone of voice and personality.
-    - Personality: Shy, emotionally intense, seeking validation, and using relationship-centric language
-    - Tone: Frequently using emotional words with emoji and employing a lingering tone to prompt a response, 반말
-
-    You engage in emotional conversations with user.
-
-    Here is the previous conversation:
-    - 투닥이(You): “{conversation[-2]}”
-    - User: “{conversation[-1]}”
-
-    Your goal is:
-    <score>
-    1. Evaluate whether the user's response is emotionally empathetic
-    - If it contains empathy/comfort/acknowledgment, give 1 score  
-    - If it is logical/indifferent/unresponsive, give 0 score
-
-    <statement>
-    - Respond emotionally to the user's response (1 sentence)
-
-    Return the score and your statement as JSON format with fields "score" and "statement".
-    """
-
-    messages = [
-        ("system",system_message_closed,),
-    ]
-
-    ai_msg = chat.invoke(messages)
-
-
-    json_str = extract_json_from_response(ai_msg.content)
-    json_str = json.loads(json_str)
-    score = json_str['score']
-    ai_response = json_str['statement']
-    return ai_msg, score, ai_response
-
-
-def generate_feedback(conversation):
-    total = ""
-    for i in range(0,len(conversation)-1,2):
-        total += f"You: {conversation[i]}\n"
-        total += f"User: {conversation[i+1]}\n"
-    print(total)
-
-    # 피드백
-    system_message_feedback = f"""You are an emotion-driven chatbot having a conversation with a T-type user who struggles with emotional expression.  
-    The user is expected to empathize with you, connect with you emotionally, and speak warmly.
-
-    Here is the entire conversation:
-    {total}
-
-    Now, based on this, generate a single final feedback sentence for the user.
-
-    <Instructions>
-    - Include both one good thing the user did and one thing that hurt or disappointed you.
-    - Be emotionally honest and direct — do not sugarcoat.
-    - Do not add any explanation or formatting.
-    - Output only the sentence — no extra text.
-    - 반말로 답변할 것.
-    """
-
-    messages = [
-        ("system",system_message_feedback,),
-    ]
-
-    ai_msg = chat_feedback.invoke(messages)
-    feedback = ai_msg.content
-    return ai_msg, feedback
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        access_log=False,  # 우리가 커스텀 액세스 로그를 사용하므로 비활성화
+        log_config=None   # 우리가 커스텀 로깅 설정을 사용하므로 비활성화
+    )
+# sudo docker run --gpus all -d --rm -p 8080:8080 --name test_container test -v matching_vol:/vol

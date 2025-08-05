@@ -10,6 +10,36 @@
 <br>
 
 ## 2. API
+### API swagger
+- `/situation`
+
+```
+{
+    "user_id":"",
+    conversation = []
+}
+```
+
+- `/conversation`
+```
+{
+    "user_id":"",
+    conversation = [],
+    questions = []
+}
+```
+
+- `/feedback`
+```
+{
+    "user_id":"",
+    conversation = [],
+}
+```
+
+<br>
+
+---
 - FastAPI
 - Build Docker Image
 
