@@ -1,46 +1,44 @@
 # 나 T나??
-
-## 1.Pipeline
-`main.py`
+> T 성향을 가진 사람들이 감정 공감을 훈련해볼 수 있는 AI 챗봇 기반의 감정 시뮬레이션 서비스
 
 <br>
 
-![대화1](Images/pipeline_init.png)
+### 🗒️ [Notion](https://www.notion.so/T-team-23f3cff2c9eb807c8d6ec04a53afbaeb) | 🤖 [Github](https://github.com/besides-508-potenday)
 
+---
+## 1.Pipeline
+```
+natna/
+├── config
+│     └── params.yaml
+├── logs
+├── __init__.py
+├── app.py
+├── chat.py
+├── chat.py
+├── docker-compose.yml
+├── main.py
+├── nginx.conf
+├── poetry.lock
+└── pyproject.toml
+```
+
+- Pipeline
+
+    ![pipeline1](Images/AI_pipeline.png)
+
+- Output
+
+    ![pipeline2](Images/AI_pipeline_with_output.png)
 <br>
 
 ## 2. API
-### API swagger
-- `/situation`
+### [API swagger](https://www.notion.so/API-swagger-AI-BE-2453cff2c9eb80c18ed8d7dfc294b557)
 
-```
-{
-    "user_id":"",
-    conversation = []
-}
-```
-
-- `/conversation`
-```
-{
-    "user_id":"",
-    conversation = [],
-    questions = []
-}
-```
-
-- `/feedback`
-```
-{
-    "user_id":"",
-    conversation = [],
-}
-```
 
 <br>
 
----
-- FastAPI
+- [✔️] FastAPI
 - Build Docker Image
 
 <br>
@@ -75,14 +73,13 @@
 
 ## 4. To-Do
 1️⃣ AI
-- [ ] Clova model test 
-    - [✔️] <sub><del>각 태스크 별 프롬프팅</del></sub>  
-    - [ ] TPS  
-    - [ ] Langsmith
-- [✔️] <sub><del>파이프라인 설계</del></sub>  
+- [✔️] Clova model test 
+    - [✔️] 각 태스크 별 프롬프팅
+    - [✔️] TPS  
+- [✔️] 파이프라인 설계  
 - [ ] 성능(만족도) → 논의 후 방향 잡기
-- [ ] Debugging
-- [ ] Exception Handling
+- [✔️] Debugging
+- [✔️] Exception Handling
 
 2️⃣ API swagger
 

@@ -1,14 +1,57 @@
-# 1. 첫 설정
-echo "CLOVASTUDIO_API_KEY=your-key-here" > .env
+version: '3.9'
 
-# # 2. 개발 시작
-# docker-compose up --build
+services:
+  natana-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    deploy:
+      replicas: 1  # 2개 인스턴스로 로드 분산
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    ports:
+      - "8000:8000"
+    environment:
+      - CLOVASTUDIO_API_KEY=${CLOVASTUDIO_API_KEY}
+      - WORKERS=4  # CPU 코어 수에 따라 조정
+      - MAX_WORKERS=8
+      - WORKER_CONNECTIONS=1000
+      - KEEPALIVE_TIMEOUT=5
+      - REQUEST_TIMEOUT=30
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - ai-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
-# # 3. 백그라운드 실행
-# docker-compose up -d
+  # Nginx 로드 밸런서 추가
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - ai-be
+    networks:
+      - ai-network
+    restart: unless-stopped
 
-# # 4. 로그 확인
-# docker-compose logs -f
+networks:
+  ai-network:
+    driver: bridge
 
-# # 5. 정리
-# docker-compose down
+volumes:
+  logs:
+    driver: local

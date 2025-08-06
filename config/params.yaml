@@ -1,0 +1,97 @@
+DEFAULT_PARAMS:
+  topP: 0.8
+  topK: 0
+  maxCompletionTokens: 512
+  temperature: 0.7
+  repetitionPenalty: 1.1
+  seed: 0
+  includeAiFilters: false
+  thinking:
+    effort: none
+
+LONG_PARAMS:
+  topP: 0.8
+  topK: 0
+  maxCompletionTokens: 1024
+  temperature: 0.7
+  repetitionPenalty: 1.1
+  seed: 0
+  includeAiFilters: false
+  thinking:
+    effort: none
+
+SITUATION_QUIZ:
+  topP: 0.8
+  topK: 0
+  maxCompletionTokens: 1024
+  temperature: 0.7
+  repetitionPenalty: 1.1
+  seed: 0
+  includeAiFilters: false
+  thinking:
+    effort: none
+  responseFormat:
+    type: json
+    schema:
+      type: object
+      properties:
+        situation:
+          type: string
+        sentences:
+          type: array
+          items:
+            type: string
+          minItems: 10
+          maxItems: 10
+      required:
+        - situation
+        - sentences
+
+VERIFICATION_AND_SCORE:
+  topP: 0.8
+  topK: 0
+  maxCompletionTokens: 512
+  temperature: 0.7
+  repetitionPenalty: 1.1
+  seed: 0
+  includeAiFilters: false
+  thinking:
+    effort: none
+  responseFormat:
+    type: json
+    schema:
+      type: object
+      properties:
+        verification:
+          type: boolean
+        score:
+          type: integer
+      required:
+        - verification
+        - score
+
+FEEDBACK_PARAMS:
+  topP: 0.8
+  topK: 0
+  maxCompletionTokens: 1024
+  temperature: 0.7
+  repetitionPenalty: 1.1
+  seed: 0
+  includeAiFilters: false
+  thinking:
+    effort: none
+  responseFormat:
+    type: json
+    schema:
+      type: object
+      properties:
+        first_greeting:
+          type: string
+        text:
+          type: string
+        last_greeting:
+          type: string
+      required:
+        - first_greeting
+        - text
+        - last_greeting
