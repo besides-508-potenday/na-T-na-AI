@@ -46,32 +46,32 @@ if not st.session_state.started:
                 "chatbot_name": st.session_state.chatbot_name
             }
 
-            # try:
-            #     res = requests.post(f"{API_BASE}/situation", json=payload)
-            #     if res.status_code == 200:
-            #         res_data = res.json()
-            #         st.session_state.quiz_list = res_data["quiz_list"]
-            #         st.session_state.started = True
-            #         first_bot_message = f"안녕... {st.session_state.quiz_list[0]}"
-            #         st.session_state.conversation.append({"role": st.session_state.chatbot_name, "content": first_bot_message})
-            #     else:
-            #         st.error("❌ 상황 생성 실패: 서버에서 에러가 발생했습니다.")
-            # except requests.exceptions.RequestException as e:
-            #     st.error(f"❌ 서버 연결 오류: {e}")
+            try:
+                res = requests.post(f"{API_BASE}/situation", json=payload)
+                if res.status_code == 200:
+                    res_data = res.json()
+                    st.session_state.quiz_list = res_data["quiz_list"]
+                    st.session_state.started = True
+                    first_bot_message = f"안녕... {st.session_state.quiz_list[0]}"
+                    st.session_state.conversation.append(first_bot_message)
+                else:
+                    st.error("❌ 상황 생성 실패: 서버에서 에러가 발생했습니다.")
+            except requests.exceptions.RequestException as e:
+                st.error(f"❌ 서버 연결 오류: {e}")
 
-            res_data = {
-                "situation": "깜짝 생일파티 준비 중인데, 친구가 좋아해줄까 걱정될 때",
-                "quiz_list": [
-                    "내 말 좀 들어줄래...? 사실 이번에 깜짝 생일파티를 준비하고 있는데, 혹시라도 내 친구가 마음에 들지 않으면 어쩌나 걱정이 돼서...",
-                    "친구가 기뻐했으면 좋겠는데, 너무 과하게 준비한 건 아닐까 싶어서 자꾸 마음이 불안해져...😥",
-                    # "내가 열심히 준비한 게 헛수고가 될까 봐 두려워. 너라면 어떻게 생각해?",
-                ]
-            }
+            # res_data = {
+            #     "situation": "깜짝 생일파티 준비 중인데, 친구가 좋아해줄까 걱정될 때",
+            #     "quiz_list": [
+            #         "내 말 좀 들어줄래...? 사실 이번에 깜짝 생일파티를 준비하고 있는데, 혹시라도 내 친구가 마음에 들지 않으면 어쩌나 걱정이 돼서...",
+            #         "친구가 기뻐했으면 좋겠는데, 너무 과하게 준비한 건 아닐까 싶어서 자꾸 마음이 불안해져...😥",
+            #         # "내가 열심히 준비한 게 헛수고가 될까 봐 두려워. 너라면 어떻게 생각해?",
+            #     ]
+            # }
 
-            st.session_state.quiz_list = res_data["quiz_list"]
-            st.session_state.started = True
-            first_bot_message = f"안녕... {st.session_state.quiz_list[0]}"
-            st.session_state.conversation.append(first_bot_message)
+            # st.session_state.quiz_list = res_data["quiz_list"]
+            # st.session_state.started = True
+            # first_bot_message = f"안녕... {st.session_state.quiz_list[0]}"
+            # st.session_state.conversation.append(first_bot_message)
  
             st.rerun()
 
@@ -101,7 +101,7 @@ if st.session_state.started:
             "chatbot_name": st.session_state.chatbot_name,
             "conversation": st.session_state.conversation + [user_input],  # 아직 state에는 반영하지 않음
             "quiz_list": st.session_state.quiz_list,
-            "current_distance": st.session_state.current_idx
+            "current_distance": 1
         }
 
         # 사용자 메시지 추가

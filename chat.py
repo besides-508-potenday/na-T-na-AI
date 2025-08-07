@@ -6,6 +6,7 @@ import json
 import time
 import psutil
 import yaml
+import random
 from typing import List, Dict, Any, Optional
 
 from dotenv import load_dotenv
@@ -31,7 +32,9 @@ API_CONFIG = {
     'request_id': request_id
 }
 
-
+MAX_REACT_LENGTH = 60
+MAX_FEEDBACK_LENGTH = 300
+attempt_limit = 3
 
 # HTTP 클라이언트 설정 (연결 풀링)
 http_client = httpx.Client(
@@ -138,26 +141,41 @@ def execute_chat(system_message: str, parameter:dict, **kwargs) -> Optional[Dict
     
 #     return None
 
+# sinario = ["깜짝 생일 파티를 준비 중인데, 친구가 좋아해줄까 걱정돼.\n친구가 부담스러워하거나, 별로 안 좋아하면 어떡하지? 불안해...\n친구가 조용한 걸 좋아하는 편이라 더 고민돼.\n",
+#  "친하다고 생각했던 친구가 내 생일을 완전히 잊어버려서 너무 속상해.\n그냥 아무렇지 않게 넘어가려고 했는데 다른 친구들은 다 챙기더라고..\n내가 너무 기대를 많이 했나? 나만 의미를 부여했나 복잡해.",
+#  "단체 사진에서 나만 눈을 감았더라..\n아무도 그 이야기를 해주지 않았고, 그 사진은 계속 대표 사진으로 쓰이고 있어.\n그냥 웃어넘기려고 했는데 다들 나를 신경 안 쓴 것 같아 서운해.\n말하면 민망할까봐 아무도 말을 안해주걸까? 말을 안하면 이 사진이 계속 돌아다닐텐데 불편하고 서운해."]
+
 # 1. situation
 def generate_situation_and_quiz():
+    sinario = ["깜짝 생일 파티를 준비 중인데, 친구가 좋아해줄까 걱정돼.\n친구가 부담스러워하거나, 별로 안 좋아하면 어떡하지? 불안해...\n친구가 조용한 걸 좋아하는 편이라 더 고민돼.\n",
+    "친하다고 생각했던 친구가 내 생일을 완전히 잊어버려서 너무 속상해.\n그냥 아무렇지 않게 넘어가려고 했는데 다른 친구들은 다 챙기더라고..\n내가 너무 기대를 많이 했나? 나만 의미를 부여했나 복잡해.",
+    "단체 사진에서 나만 눈을 감았더라..\n아무도 그 이야기를 해주지 않았고, 그 사진은 계속 대표 사진으로 쓰이고 있어.\n그냥 웃어넘기려고 했는데 다들 나를 신경 안 쓴 것 같아 서운해.\n말하면 민망할까봐 아무도 말을 안해주걸까? 말을 안하면 이 사진이 계속 돌아다닐텐데 불편하고 서운해."]
+    random_sa = random.sample(sinario,1)
+    random_sa = "".join(random_sa)
+    print("Example situation")
+    print(random_sa)
+
     system_message_situation_and_quiz = f"""Your task is to generate 10 emotional sentences in order based on specific situations (not in question form).
 
     You are an F-type (emotional) MBTI personality type, and you have the following tone of voice and personality.
     - Personality: Shy, emotionally intense, seeking validation, and using relationship-centric language
     - Tone: Frequently using emotional words with emoji and employing a lingering tone to prompt a response, 반말
 
-    Task1: Refer to examples and Generate a realistic situation.
+
+    Task1: Refer to example and Generate a realistic situation in the same format as the example.
+
+    Here is the example situation:
+    {random_sa}
+
+    <Instructions>
     - Generate 1 situation that are difficult for a user who find it hard to empathize and express their feelings to respond to.
-    - Topic: friendship, love
+    - Topic: friendship
+    - Do not generate situation that don't happen often.
     - Do not generate content related to the following serious or sensitive topics:
     death, suicide, abuse, serious illness, depression, trauma, domestic violence, unemployment, etc.
 
-    Here is the examples about situation:
-    - 깜짝 생일파티 준비 중인데, 친구가 좋아해줄까 걱정될 때
-    - 단체 사진에서 나만 눈 감고 나온 걸 아무도 얘기 안 해줬을 때
-    - 같이 가기로 한 약속을 친구가 갑자기 다른 친구랑 가버렸을 때
 
-    Task2: Based on the 1 generated situation, Generate 10 emotional sentences.
+    Task2: Based on 1 new generated situation, Generate 10 emotional sentences.
 
     <Instructions>
     - Feel like you're speaking to a close friend
@@ -168,30 +186,40 @@ def generate_situation_and_quiz():
     - 반말로 한국어로 답변하세요.
 
     <Important>
-    - The first sentence must feel like the start of a conversation, starting with  "내 말 좀 들어줄래...?" and briefly mentioning the situation.
-    - You should mention the situation very briefly in every sentence.
+    - Genetate sentences within 100 characters.
+    - The first sentence must feel like the start of a conversation, starting with "내 말 좀 들어줄래...?" and MUST mentioning the situation. (Don't give the impression that the conversation started out of the blue.) Do not generate only "내 말 좀 들어줄래...?"
+    - You MUST mention the situation briefly in every sentence.
+    - Talk about the situation and express your feelings.
 
     Return generated situation and 10 sentences as JSON FORMAT.
     "situation": ...
     "sentences": [1.\n2.\n3.\n4.\n5.\n6.\n7.\n8.\n9.\n10].
     """
-
-    print("=== 상황 및 문제 생성 ===")
-    result = execute_chat(system_message_situation_and_quiz, SITUATION_QUIZ_PARAMS)
-    print(result)
-    
-    if result:
-        json_str = result['response_text']
-        json_str = json.loads(json_str)
-        situation = json_str['situation']
-
-        raw_questions = json_str['sentences']
-        questions = [re.sub(r'^\d+\.\s*', '', line.strip()) for line in raw_questions if line.strip()][:10]
-        questions[0] = ''.join(questions[0].split("말 좀 들어줄래...?")[1:]).strip()
-
-        if len(questions) == 10:
-            return situation, questions
+    for attempt in range(MAX_REACT_LENGTH):
+        print("=== 상황 및 문제 생성 ===")
+        result = execute_chat(system_message_situation_and_quiz, SITUATION_QUIZ_PARAMS)
+        print(result)
         
+        if result:
+            try:
+                json_str = result['response_text']
+                json_str = json.loads(json_str)
+                situation = json_str['situation']
+
+                raw_questions = json_str['sentences']
+                questions = [re.sub(r'^\d+\.\s*', '', line.strip()) for line in raw_questions if line.strip()][:10]
+                if questions[0].find("내 말 좀 들어줄래...?") != -1:
+                    questions[0] = ''.join(questions[0].split("말 좀 들어줄래...?")[1:]).strip()
+                if questions[0].find("내 말 좀 들어줄래...") != -1:
+                    questions[0] = ''.join(questions[0].split("말 좀 들어줄래...")[1:]).strip()
+
+                if len(questions) == 10 and questions[0].strip() != "":
+                    return situation, questions
+            except Exception as e:
+                print(f"[에러] JSON 파싱 실패: {e}")
+        else:
+            print(f"[재시도 {attempt+1}] 다시 생성합니다.")
+
     return "깜짝 생일파티 준비 중인데, 친구가 좋아해줄까 걱정될 때", ['친구가 다음 주에 생일이라 깜짝 파티 준비하려는데, 정말 마음이 무거워...',
             '요즘 일이 너무 바빠서 시간 내기가 쉽지 않아... 그래서 더 초조해지고 있어.',
             '친구 몰래 다른 애들이랑 연락하면서 계획을 세워야 하니까 부담스럽기도 하고...',
@@ -205,6 +233,8 @@ def generate_situation_and_quiz():
 
 
 """
+situation, questions = generate_situation_and_quiz()
+
 - Empathy for the process: Shows empathy for the difficulties and emotions experienced during the process rather than the outcome.
 - Warm comfort: Use expressions that reassure and support the other person.
 - Specific mention of emotions: Deepens empathy by specifically mentioning the other person's emotions.
@@ -213,6 +243,7 @@ def generate_situation_and_quiz():
 conversation = ['친구가 다음 주에 생일이라 깜짝 파티 준비하려는데, 정말 마음이 무거워...','왜?']
 chatbot_name = "투닥이"
 user_nickname = "삐롱이"
+score = 0
 """
 
 
@@ -257,7 +288,7 @@ def generate_verification_and_score(conversation, chatbot_name, user_nickname):
     - Focusing on advice ("Don't do that again.")
     - Being positive without context ("Just think positively~")
     - Leading to a quick answer ("So what's your conclusion?")
-    
+
     Return the filer and score as JSON format with fields "verification" and "score" without any additional explanation or text and react.
     """
 
@@ -273,8 +304,6 @@ def generate_verification_and_score(conversation, chatbot_name, user_nickname):
                 json_str = json.loads(json_str)
                 verification = json_str['verification']
                 score = json_str['score']
-                if len(conversation[-1]) < 10:
-                    score = 0
                 return verification, score
             except json.JSONDecodeError:
                 return result['verification'], 0
@@ -312,18 +341,50 @@ def generate_response(conversation, score, chatbot_name, user_nickname):
     Return your statement without any additional explanation or text.
     """
 
-    print(f"=== {chatbot_name} 리액션 ===")
-    result = execute_chat(system_message_react_and_improved, DEFAULT_PARAMS)
+    # print(f"=== {chatbot_name} 리액션 ===")
+    # result = execute_chat(system_message_react_and_improved, DEFAULT_PARAMS)
 
-    if result:
-        print(f"{result['response_text']}")
-        react = result['response_text']
+    try:
+        attempt = 0
+        while True:
+            print(f"=== {chatbot_name} 리액션 ({attempt + 1}) ===")
+            if attempt > 0:
+                result = execute_chat(system_message_react_and_improved + f"Generate the statement with {MAX_REACT_LENGTH} characters or less.\n", DEFAULT_PARAMS)
+            result = execute_chat(system_message_react_and_improved, DEFAULT_PARAMS)
+            if result:
+                print(f"{result['response_text']}")
+                react = result['response_text']
 
-        if react[:len(chatbot_name)] == chatbot_name:
-            react = react[len(chatbot_name)+1:].strip()
+                if react[:len(chatbot_name)] == chatbot_name:
+                    react = react[len(chatbot_name)+1:].strip()
 
-        return react
-    return "..."
+            if len(react) <= MAX_REACT_LENGTH:
+                return react
+
+            attempt += 1
+            if attempt >= attempt_limit:
+                # 최대 시도 횟수 도달 시 가장 마지막 결과로 탈출
+                print("⚠️ 최대 시도 횟수 도달. 길이 조건을 충족하지 못했지만 진행합니다.")
+                return react
+
+    # if result:
+    #     print(f"{result['response_text']}")
+    #     react = result['response_text']
+
+    #     if react[:len(chatbot_name)] == chatbot_name:
+    #         react = react[len(chatbot_name)+1:].strip()
+
+        # return react
+    except Exception as e:
+        print(f"Error generating reaction: {e}")
+        # 예외 발생 시 기본 리액션 반환
+        # 여기서는 기본 리액션을 빈 문자열로 설정
+        return "..."
+
+
+"""
+react = generate_response(conversation, score, chatbot_name, user_nickname)
+"""
 
 def improved_question(quiz_list, conversation, react, chatbot_name):
     default_question = quiz_list[len(conversation) // 2]
@@ -345,18 +406,56 @@ def improved_question(quiz_list, conversation, react, chatbot_name):
     Return ONLY improved phrase without any additional explanation or text and react.
     """
 
-    print("=== 검증 및 점수 ===")
-    result = execute_chat(system_message_improved, DEFAULT_PARAMS)
+    try:
+        attempt = 0
+        while True:
+            print(f"=== 문제 개선 ({attempt + 1}) ===")
+            if attempt > 0:
+                result = execute_chat(system_message_improved + f"Generate improved phrase with {MAX_REACT_LENGTH} characters or less.\n", DEFAULT_PARAMS)
+            result = execute_chat(system_message_improved, DEFAULT_PARAMS)
+            if result:
+                print(f"{result['response_text']}")
+                improved_quiz = result['response_text']
+                check_length = len(react) + len(default_question)
+                if check_length - 5 < len(improved_quiz) < check_length + 5:
+                    improved_quiz = default_question
 
-    if result:
-        print(f"{result['response_text']}")
-        improved_quiz = result['response_text']
-        check_length = len(react) + len(default_question)
-        if check_length - 5 < len(improved_quiz) < check_length + 5:
-            improved_quiz = default_question
+            if len(improved_quiz) <= MAX_REACT_LENGTH:
+                return improved_quiz
 
-        return improved_quiz
-    return default_question
+            attempt += 1
+            if attempt >= attempt_limit:
+                # 최대 시도 횟수 도달 시 가장 마지막 결과로 탈출
+                print("⚠️ 최대 시도 횟수 도달. 길이 조건을 충족하지 못했지만 진행합니다.")
+                return improved_quiz
+
+    # if result:
+    #     print(f"{result['response_text']}")
+    #     react = result['response_text']
+
+    #     if react[:len(chatbot_name)] == chatbot_name:
+    #         react = react[len(chatbot_name)+1:].strip()
+
+        # return react
+    except Exception as e:
+        print(f"Error generating reaction: {e}")
+        # 예외 발생 시 기본 리액션 반환
+        # 여기서는 기본 리액션을 빈 문자열로 설정
+        return default_question
+
+
+    # print("=== 검증 및 점수 ===")
+    # result = execute_chat(system_message_improved, DEFAULT_PARAMS)
+
+    # if result:
+    #     print(f"{result['response_text']}")
+    #     improved_quiz = result['response_text']
+    #     check_length = len(react) + len(default_question)
+    #     if check_length - 5 < len(improved_quiz) < check_length + 5:
+    #         improved_quiz = default_question
+
+    #     return improved_quiz
+    # return default_question
 
 """
 current_distance = 7
@@ -422,25 +521,54 @@ def generate_feedback(conversation, current_distance, chatbot_name, user_nicknam
 
     Return the letter as JSON format with fields "first_greeting", "text", "last_greeting"
     """
+    try:
+        attempt = 0
+        while True:
+            print(f"=== 피드백 ({attempt + 1})===")
+            if attempt > 0:
+                result = execute_chat(system_message_feedback + f"Generate “text” with {MAX_FEEDBACK_LENGTH} characters or less.\n", FEEDBACK_PARAMS)
+            result = execute_chat(system_message_feedback, FEEDBACK_PARAMS)
+            print(result)
+            if result:
+                json_str = result['response_text']
+                json_str = json.loads(json_str)
+                print(json_str)
 
-    print("=== 피드백 ===")
-    result = execute_chat(system_message_feedback, FEEDBACK_PARAMS)
-    print(result)
-    if result:
-        json_str = result['response_text']
-        json_str = json.loads(json_str)
-        print(json_str)
+                first_greeting = json_str['first_greeting']
+                text = json_str['text']
+                last_greeting = json_str['last_greeting']
 
-        first_greeting = json_str['first_greeting']
-        text = json_str['text']
-        last_greeting = json_str['last_greeting']
+            if len(text) <= MAX_FEEDBACK_LENGTH:
+                return first_greeting, text, last_greeting
+
+            attempt += 1
+            if attempt >= attempt_limit:
+                # 최대 시도 횟수 도달 시 가장 마지막 결과로 탈출
+                print("⚠️ 최대 시도 횟수 도달. 길이 조건을 충족하지 못했지만 진행합니다.")
+                return first_greeting, text, last_greeting
+
+    except Exception as e:
+        print(f"Error generating feedback: {e}")       
+        return "", "", "힘들었던 하루 끝에,"
+    
+    # print("=== 피드백 ===")
+    # result = execute_chat(system_message_feedback, FEEDBACK_PARAMS)
+    # print(result)
+    # if result:
+    #     json_str = result['response_text']
+    #     json_str = json.loads(json_str)
+    #     print(json_str)
+
+    #     first_greeting = json_str['first_greeting']
+    #     text = json_str['text']
+    #     last_greeting = json_str['last_greeting']
         
-        return first_greeting, text, last_greeting
-        # try:
-        #     feedback = "\n\n".join(letter.split("\n\n")[1:-1])
-        #     last_greeting = letter.split("\n\n")[-1].split("\n")[0].strip()
-        #     return letter, feedback, last_greeting
-        # except IndexError:
-        #     return result['response_text'], result['response_text'], "힘들었던 하루 끝에,"
+    #     return first_greeting, text, last_greeting
+    #     # try:
+    #     #     feedback = "\n\n".join(letter.split("\n\n")[1:-1])
+    #     #     last_greeting = letter.split("\n\n")[-1].split("\n")[0].strip()
+    #     #     return letter, feedback, last_greeting
+    #     # except IndexError:
+    #     #     return result['response_text'], result['response_text'], "힘들었던 하루 끝에,"
 
-    return "", "", "힘들었던 하루 끝에,"
+    # return "", "", "힘들었던 하루 끝에,"

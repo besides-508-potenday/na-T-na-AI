@@ -1,52 +1,66 @@
 version: '3.9'
 
 services:
-  natana-ai:
+  ai-be:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: natna_app
     deploy:
-      replicas: 1  # 2개 인스턴스로 로드 분산
+      replicas: 1
       resources:
         limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
           memory: 1G
           cpus: '0.5'
-        reservations:
-          memory: 512M
-          cpus: '0.25'
     ports:
       - "8000:8000"
     environment:
+      - HOST=${HOST}
       - CLOVASTUDIO_API_KEY=${CLOVASTUDIO_API_KEY}
-      - WORKERS=4  # CPU 코어 수에 따라 조정
+      - REQUEST_ID=${REQUEST_ID}
+      - CLIENT_ID=${CLIENT_ID}
+      - CLIENT_SECRET=${CLIENT_SECRET}
+      - WORKERS=4
       - MAX_WORKERS=8
       - WORKER_CONNECTIONS=1000
       - KEEPALIVE_TIMEOUT=5
       - REQUEST_TIMEOUT=30
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=INFO
     volumes:
       - ./logs:/app/logs
+      - .:/app  # 개발용 코드 마운트
     networks:
       - ai-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 15s
-      timeout: 5s
+      interval: 30s
+      timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s
 
-  # Nginx 로드 밸런서 추가
   nginx:
     image: nginx:alpine
     ports:
       - "80:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./logs/nginx:/var/log/nginx
     depends_on:
       - ai-be
     networks:
       - ai-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
 
 networks:
   ai-network:

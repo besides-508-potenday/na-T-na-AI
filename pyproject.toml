@@ -5,7 +5,6 @@ description = ""
 authors = [
     {name = "Hongbi-Kim",email = "hongbi1620@gmail.com"}
 ]
-readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
     "langchain (>=0.3.27,<0.4.0)",
@@ -18,7 +17,8 @@ dependencies = [
     "gunicorn (>=23.0.0,<24.0.0)",
     "uvloop (>=0.21.0,<0.22.0)",
     "httptools (>=0.6.4,<0.7.0)",
-    "aiofiles (>=24.1.0,<25.0.0)"
+    "aiofiles (>=24.1.0,<25.0.0)",
+    "psutil (>=7.0.0,<8.0.0)",
 ]
 
 
