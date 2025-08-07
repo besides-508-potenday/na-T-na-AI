@@ -9,6 +9,17 @@ DEFAULT_PARAMS:
   thinking:
     effort: none
 
+REACT_PARAMS:
+  topP: 0.8
+  topK: 0
+  maxCompletionTokens: 300
+  temperature: 0.7
+  repetitionPenalty: 1.1
+  seed: 0
+  includeAiFilters: false
+  thinking:
+    effort: none
+
 LONG_PARAMS:
   topP: 0.8
   topK: 0
@@ -51,7 +62,7 @@ VERIFICATION_AND_SCORE:
   topP: 0.8
   topK: 0
   maxCompletionTokens: 512
-  temperature: 0.7
+  temperature: 0.3
   repetitionPenalty: 1.1
   seed: 0
   includeAiFilters: false
@@ -66,9 +77,12 @@ VERIFICATION_AND_SCORE:
           type: boolean
         score:
           type: integer
+        reason_score:
+          type: string
       required:
         - verification
         - score
+        - reason_score
 
 FEEDBACK_PARAMS:
   topP: 0.8

@@ -7,6 +7,8 @@ import time
 import psutil
 import yaml
 import random
+import urllib.request
+import urllib.parse
 from typing import List, Dict, Any, Optional
 
 from dotenv import load_dotenv
@@ -17,7 +19,6 @@ with open("config/params.yaml", "r") as f:
     ALL_PARAMS = yaml.safe_load(f)
 
 DEFAULT_PARAMS = ALL_PARAMS["DEFAULT_PARAMS"]
-REACT_PARAMS = ALL_PARAMS["REACT_PARAMS"]
 LONG_PARAMS = ALL_PARAMS["LONG_PARAMS"]
 SITUATION_QUIZ_PARAMS = ALL_PARAMS["SITUATION_QUIZ"]
 VERIFICAIION_AND_SCORE_PARAMS = ALL_PARAMS["VERIFICATION_AND_SCORE"]
@@ -27,6 +28,9 @@ host = os.environ.get("HOST")
 api_key = os.environ.get("CLOVASTUDIO_API_KEY")
 request_id = os.environ.get("REQUEST_ID")
 
+client_id = os.environ.get("CLIENT_ID")
+client_secret = os.environ.get("CLIENT_SECRET")
+
 API_CONFIG = {
     'host': host,
     'api_key': api_key,  # 실제 API 키로 변경
@@ -35,7 +39,7 @@ API_CONFIG = {
 
 MAX_REACT_LENGTH = 60
 MAX_FEEDBACK_LENGTH = 300
-attempt_limit = 5
+attempt_limit = 3
 
 # HTTP 클라이언트 설정 (연결 풀링)
 http_client = httpx.Client(
@@ -47,7 +51,7 @@ http_client = httpx.Client(
     )
 )
 
-def execute_chat(system_message: str,parameter:dict, **kwargs) -> Optional[Dict[str, Any]]:
+def execute_chat(system_message: str, parameter:dict, **kwargs) -> Optional[Dict[str, Any]]:
     """
     시스템 메시지만 넘겨서 간단하게 API 호출
     
@@ -118,104 +122,6 @@ def execute_chat(system_message: str,parameter:dict, **kwargs) -> Optional[Dict[
         'memory_usage': memory_after - memory_before,
     }
 
-def execute_react(system_message: str,user_message:str, parameter:dict, **kwargs) -> Optional[Dict[str, Any]]:
-    """
-    시스템 메시지만 넘겨서 간단하게 API 호출
-    
-    Args:
-        system_message: 시스템 메시지 (유일한 필수 파라미터)
-        **kwargs: 추가 파라미터 (temperature, topP 등)
-    
-    Returns:
-        API 응답 결과 딕셔너리 또는 None (실패시)
-    """
-    # 요청 데이터 구성
-    params = parameter.copy()
-    params.update(kwargs)  # 추가 파라미터가 있으면 업데이트
-    
-    completion_request = {
-        "messages": [{"role": "system", "content": system_message}, {"role":"user","content":user_message}],
-        **params
-    }
-    
-    # 헤더 설정
-    headers = {
-        'Authorization': f"Bearer {API_CONFIG['api_key']}",
-        'X-NCP-CLOVASTUDIO-REQUEST-ID': API_CONFIG['request_id'],
-        'Content-Type': 'application/json; charset=utf-8',
-        'Accept': 'application/json'
-    }
-    
-    # 성능 측정 시작
-    start_time = time.time()
-    memory_before = psutil.Process().memory_info().rss / 1024 / 1024  # MB
-    
-    try:
-        response = requests.post(
-            API_CONFIG['host'] + '/v3/chat-completions/HCX-007',
-            headers=headers, 
-            json=completion_request,
-            timeout=30
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
-            response_text = result.get('result', {}).get('message', {}).get('content', '')
-            generated_tokens = result.get('result', {}).get('usage', {}).get('completionTokens', 0)
-            total_tokens = result.get('result', {}).get('usage', {}).get('totalTokens', 0)
-        else:
-            print(f"API Error: {response.status_code}, {response.text}")
-            return None
-            
-    except Exception as e:
-        print(f"Request failed: {e}")
-        return None
-    
-    # 성능 측정 종료
-    end_time = time.time()
-    memory_after = psutil.Process().memory_info().rss / 1024 / 1024  # MB
-    
-    total_time = end_time - start_time
-    first_token_time = total_time  # 비스트리밍이므로 전체시간과 동일
-    tps = generated_tokens / total_time if total_time > 0 else 0
-    
-    return {
-        'response_text': response_text,
-        'total_time': total_time,
-        'ttft': first_token_time,
-        'generated_tokens': generated_tokens,
-        'total_tokens':total_tokens,
-        'tps': tps,
-        'memory_usage': memory_after - memory_before,
-    }
-# def extract_json_from_response(response_text):
-#     """응답에서 JSON 부분을 추출하는 함수"""
-#     # JSON 객체 패턴 찾기
-#     json_pattern = r'\{[^{}]*"score"\s*:\s*[01][^{}]*"statement"\s*:\s*"[^"]*"[^{}]*\}'
-#     match = re.search(json_pattern, response_text)
-    
-#     if match:
-#         return match.group()
-    
-#     # 더 넓은 범위로 JSON 찾기
-#     try:
-#         # 중괄호로 둘러싸인 부분 찾기
-#         start = response_text.find('{')
-#         end = response_text.rfind('}')
-#         if start != -1 and end != -1 and end > start:
-#             potential_json = response_text[start:end+1]
-#             # JSON 유효성 검사
-#             json.loads(potential_json)
-#             return potential_json
-#     except:
-#         pass
-    
-#     return None
-
-# sinario = ["깜짝 생일 파티를 준비 중인데, 친구가 좋아해줄까 걱정돼.\n친구가 부담스러워하거나, 별로 안 좋아하면 어떡하지? 불안해...\n친구가 조용한 걸 좋아하는 편이라 더 고민돼.\n",
-#  "친하다고 생각했던 친구가 내 생일을 완전히 잊어버려서 너무 속상해.\n그냥 아무렇지 않게 넘어가려고 했는데 다른 친구들은 다 챙기더라고..\n내가 너무 기대를 많이 했나? 나만 의미를 부여했나 복잡해.",
-#  "단체 사진에서 나만 눈을 감았더라..\n아무도 그 이야기를 해주지 않았고, 그 사진은 계속 대표 사진으로 쓰이고 있어.\n그냥 웃어넘기려고 했는데 다들 나를 신경 안 쓴 것 같아 서운해.\n말하면 민망할까봐 아무도 말을 안해주걸까? 말을 안하면 이 사진이 계속 돌아다닐텐데 불편하고 서운해."]
-
 # 1. situation
 def generate_situation_and_quiz():
     sinario = ["깜짝 생일 파티를 준비 중인데, 친구가 좋아해줄까 걱정돼.\n친구가 부담스러워하거나, 별로 안 좋아하면 어떡하지? 불안해...\n친구가 조용한 걸 좋아하는 편이라 더 고민돼.\n",
@@ -257,8 +163,8 @@ def generate_situation_and_quiz():
     - 반말로 한국어로 답변하세요.
 
     <Important>
-    - Generate sentences within 100 characters.
-    - The first sentence must be identical to the text of the generated situation.
+    - Genetate sentences within 100 characters.
+    - The first sentence must feel like the start of a conversation, starting with "내 말 좀 들어줄래...?" and MUST mentioning the situation. (Don't give the impression that the conversation started out of the blue.) Do not generate only "내 말 좀 들어줄래...?"
     - You MUST mention the situation briefly in every sentence.
     - Talk about the situation and express your feelings.
 
@@ -283,24 +189,6 @@ def generate_situation_and_quiz():
                     questions[0] = ''.join(questions[0].split("말 좀 들어줄래...?")[1:]).strip()
                 if questions[0].find("내 말 좀 들어줄래...") != -1:
                     questions[0] = ''.join(questions[0].split("말 좀 들어줄래...")[1:]).strip()
-                try:
-                    if len(questions[0]) > 60:
-                        print("\n첫 번째 퀴즈 수정 중....")
-                        change_q = questions[0]
-                        change_quiz = f"""Your task is to abbreviate a sentence to less than {MAX_REACT_LENGTH*1.3} characters.
-                        This is the sentence: {change_q}
-
-                        Do not change the content.
-                        Do not remove specific details.
-
-                        Return only abbreviated sentences without any additional explanation or text and react.
-                        """
-                        result = execute_chat(change_quiz, DEFAULT_PARAMS)
-                        result = result['response_text']
-                        print(f"수정된 첫 번째 퀴즈: {result}")
-                        questions[0] = result
-                except:
-                    pass
 
                 if len(questions) == 10 and questions[0].strip() != "":
                     return situation, questions
@@ -339,10 +227,10 @@ score = 0
 # 2. conversation
 def generate_verification_and_score(conversation, chatbot_name, user_nickname):
     ref = ""
-    ref += f"- {chatbot_name}: {conversation[-2]}\n"
-    ref += f"- {user_nickname}: {conversation[-1]}\n"
-    print("\n== 이전 대화 ==")
-    print(ref)
+    for i in range(0,len(conversation)-1,2):
+        ref += f"- {chatbot_name}: {conversation[i]}\n"
+        ref += f"- {user_nickname}: {conversation[i+1]}\n"
+
     system_message_verification_score = f"""You are an emotion-based chatbot that converses with T-type users who are not good at expressing their emotions.
     Your name is {chatbot_name}.
     You are an F-type (emotional) MBTI personality type, and you have the following tone of voice and personality.
@@ -362,7 +250,7 @@ def generate_verification_and_score(conversation, chatbot_name, user_nickname):
     - Return False if inappropriate, otherwise True.
 
     <score>
-    1. Evaluate whether the {user_nickname}'s response is emotionally empathetic.
+    1. Evaluate whether the user's response is emotionally empathetic
     Give 1 score if any of the following conditions are met, otherwise 0 score
     - Accurately read and mention their feelings(ex. "That must have been really disappointing.", "It must have been really hard on you...")
     - Justify their feelings (tell you that your feelings are not strange)(ex. "It's natural to feel that way.")
@@ -373,21 +261,15 @@ def generate_verification_and_score(conversation, chatbot_name, user_nickname):
 
     Give 0 score if any of the following conditions are met.
     - Emphasizing only problem solving ("So what are you going to do about it?")
-    - Ignoring emotions ("Isn't that okay?", "I don't know")
+    - Ignoring emotions ("Isn't that okay?")
     - Focusing on advice ("Don't do that again.")
     - Being positive without context ("Just think positively~")
     - Leading to a quick answer ("So what's your conclusion?")
-    - "Why?"
 
-    Do not award points easily. Short and insincere response should receive a score of 0.
-
-    <reason_score>
-    - Briefly explain why you gave that score.
-
-    Return the filer and score as JSON format with fields "verification" and "score" and "reason_score" without any additional explanation or text and react.
+    Return the filer and score as JSON format with fields "verification" and "score" without any additional explanation or text and react.
     """
 
-    print("\n=== 검증 및 점수 ===")
+    print("=== 검증 및 점수 ===")
     result = execute_chat(system_message_verification_score, VERIFICAIION_AND_SCORE_PARAMS)
 
     if result:
@@ -399,7 +281,6 @@ def generate_verification_and_score(conversation, chatbot_name, user_nickname):
                 json_str = json.loads(json_str)
                 verification = json_str['verification']
                 score = json_str['score']
-                reason_score = json_str["reason_score"]
                 return verification, score
             except json.JSONDecodeError:
                 return result['verification'], 0
@@ -413,13 +294,12 @@ def generate_response(conversation, score, chatbot_name, user_nickname):
     for i in range(0,len(conversation)-1,2):
         ref += f"- {chatbot_name}: {conversation[i]}\n"
         ref += f"- {user_nickname}: {conversation[i+1]}\n"
-    print("\n=== 대화 기록 == ")
-    print(ref)
+
     # 리액션
     if score == 0:
-        tone = "disappointment or sad"
+        tone = "disappointment"
     else:
-        tone = ""
+        tone = "excitement"
 
     system_message_react_and_improved = f"""You are an emotion-based chatbot that converses with T-type users who are not good at expressing their emotions.
     Your name is {chatbot_name}.
@@ -427,16 +307,12 @@ def generate_response(conversation, score, chatbot_name, user_nickname):
     - Personality: Shy, emotionally intense, seeking validation, and using relationship-centric language
     - Tone: Frequently using emotional words with emoji, 반말
 
-    This is a situation about {chatbot_name}: {conversation[0]}
-
     Here is the previous conversation:
     {ref}
 
-    {chatbot_name}가 말하는 "친구"는 {user_nickname}가 아닌 다른 친구입니다.
-
     Your goal is:
     <statement>
-    Respond emotionally with {tone} to {user_nickname}'s last comment.
+    Respond emotionally with {tone} if {user_nickname}'s comment is not what you wanted to hear. 
     - {chatbot_name}:
 
     Return your statement without any additional explanation or text.
@@ -448,11 +324,10 @@ def generate_response(conversation, score, chatbot_name, user_nickname):
     try:
         attempt = 0
         while True:
-            print(f"\n=== {chatbot_name} 리액션 ({attempt + 1}) ===")
+            print(f"=== {chatbot_name} 리액션 ({attempt + 1}) ===")
             if attempt > 0:
-                result = execute_react(system_message_react_and_improved + f"Generate the statement with {MAX_REACT_LENGTH*0.7} characters or less.\n", conversation[-1], REACT_PARAMS)
-            else:
-                result = execute_react(system_message_react_and_improved, conversation[-1],  REACT_PARAMS)
+                result = execute_chat(system_message_react_and_improved + f"Generate the statement with {MAX_REACT_LENGTH} characters or less.\n", DEFAULT_PARAMS)
+            result = execute_chat(system_message_react_and_improved, DEFAULT_PARAMS)
             if result:
                 print(f"{result['response_text']}")
                 react = result['response_text']
@@ -461,16 +336,14 @@ def generate_response(conversation, score, chatbot_name, user_nickname):
                     react = react[len(chatbot_name)+1:].strip()
 
             if len(react) <= MAX_REACT_LENGTH:
-                print(f"리액션 길이: {len(react)}")
                 return react
 
             attempt += 1
             if attempt >= attempt_limit:
                 # 최대 시도 횟수 도달 시 가장 마지막 결과로 탈출
                 print("⚠️ 최대 시도 횟수 도달. 길이 조건을 충족하지 못했지만 진행합니다.")
-                # react = ".".join(react.split(".")[:-1])
-                print(f"리액션 길이: {len(react)}")
                 return react
+
     # if result:
     #     print(f"{result['response_text']}")
     #     react = result['response_text']
@@ -503,7 +376,7 @@ def improved_question(quiz_list, conversation, react, chatbot_name):
     <improved_sentence>
     - The phrase {default_question} is what you should say after {react}. 
     - Just improve this phrase so that it flows naturally.
-    - You can use conjunctions("그런데", "하지만", etc...) if necessary.
+    - You can use conjunctions if necessary.
     - Don't add any other phrases.
 
     Do not include {react}.
@@ -511,14 +384,12 @@ def improved_question(quiz_list, conversation, react, chatbot_name):
     """
 
     try:
-        print(f"\n=== 기존 문제 ===\n{default_question}")
         attempt = 0
         while True:
-            print(f"\n=== 문제 개선 ({attempt + 1}) ===")
+            print(f"=== 문제 개선 ({attempt + 1}) ===")
             if attempt > 0:
-                result = execute_chat(system_message_improved + f"Generate improved phrase with {MAX_REACT_LENGTH*0.7} characters or less.\n", DEFAULT_PARAMS)
-            else:
-                result = execute_chat(system_message_improved, DEFAULT_PARAMS)
+                result = execute_chat(system_message_improved + f"Generate improved phrase with {MAX_REACT_LENGTH} characters or less.\n", DEFAULT_PARAMS)
+            result = execute_chat(system_message_improved, DEFAULT_PARAMS)
             if result:
                 print(f"{result['response_text']}")
                 improved_quiz = result['response_text']
@@ -527,16 +398,13 @@ def improved_question(quiz_list, conversation, react, chatbot_name):
                     improved_quiz = default_question
 
             if len(improved_quiz) <= MAX_REACT_LENGTH:
-                print(f"\n퀴즈 길이: {len(improved_quiz)}")
                 return improved_quiz
 
             attempt += 1
             if attempt >= attempt_limit:
                 # 최대 시도 횟수 도달 시 가장 마지막 결과로 탈출
                 print("⚠️ 최대 시도 횟수 도달. 길이 조건을 충족하지 못했지만 진행합니다.")
-                print(f"개선된 퀴즈 길이: {len(improved_quiz)}")
-                print(f"기존 퀴즈 길이: {len(default_question)}")
-                return default_question
+                return improved_quiz
 
     # if result:
     #     print(f"{result['response_text']}")
@@ -574,11 +442,39 @@ chatbot_name = "투닥이"
 user_nickname = "삐롱이"
 """
 
+def generate_tts(text, save_path = "sample.mp3"):
+    # encText = text.encode('utf-8')
+    data = urllib.parse.urlencode({
+        "speaker": "nwoof",
+        "volume": "0",
+        "speed": "3",
+        "pitch": "5",
+        "text": text,
+        "format": "mp3"
+    }).encode("utf-8")
+
+    url = "https://naveropenapi.apigw.ntruss.com/tts-premium/v1/tts"
+    request = urllib.request.Request(url)
+    request.add_header("X-NCP-APIGW-API-KEY-ID", client_id)
+    request.add_header("X-NCP-APIGW-API-KEY", client_secret)
+
+    response = urllib.request.urlopen(request, data=data)
+    rescode = response.getcode()
+
+    if rescode == 200:
+        print("TTS mp3 save")
+        response_body = response.read()
+        with open(save_path, 'wb') as f:
+            f.write(response_body)
+        return save_path
+    else:
+        print("Error Code:", rescode)
+        return None
 
 def generate_feedback(conversation, current_distance, chatbot_name, user_nickname):
-    if current_distance < 2:
+    if current_distance < 3:
         letter_tone = "Write the letter with a sense of happiness and being moved."
-    elif 3 <= current_distance < 5:
+    elif 3 <= current_distance < 6:
         letter_tone = "Write the letter with a sense of excitement and being moved."
     elif 6 <= current_distance < 8:
         letter_tone = "Write the letter with a sense of disappointment and resentment."
@@ -605,7 +501,8 @@ def generate_feedback(conversation, current_distance, chatbot_name, user_nicknam
 
     <Instructions>
     - Generate in Korean.
-    - Describe in detail and emotionally the specific phrases that disappointed or impressed you.
+    - The letter should not exceed 450 characters.
+    - Specifically mention points that disappointed or impressed the user.
     - Feel like you're speaking to a close friend while emotionally overwhelmed
     - At the end, write emotional last greeting like, “빛나는 우리의 우정을 염원하며,”
     - 반말로 답변할 것.
@@ -634,9 +531,8 @@ def generate_feedback(conversation, current_distance, chatbot_name, user_nicknam
         while True:
             print(f"=== 피드백 ({attempt + 1})===")
             if attempt > 0:
-                result = execute_chat(system_message_feedback + f"Generate 'text' with {MAX_FEEDBACK_LENGTH*0.7} characters or less.\n", FEEDBACK_PARAMS)
-            else:
-                result = execute_chat(system_message_feedback, FEEDBACK_PARAMS)
+                result = execute_chat(system_message_feedback + f"Generate “text” with {MAX_FEEDBACK_LENGTH} characters or less.\n", FEEDBACK_PARAMS)
+            result = execute_chat(system_message_feedback, FEEDBACK_PARAMS)
             print(result)
             if result:
                 json_str = result['response_text']
@@ -654,30 +550,10 @@ def generate_feedback(conversation, current_distance, chatbot_name, user_nicknam
             if attempt >= attempt_limit:
                 # 최대 시도 횟수 도달 시 가장 마지막 결과로 탈출
                 print("⚠️ 최대 시도 횟수 도달. 길이 조건을 충족하지 못했지만 진행합니다.")
-                return first_greeting, text, last_greeting
+                tts_path = generate_tts(text, save_path="result.mp3")
+                return first_greeting, text, last_greeting, tts_path
 
     except Exception as e:
         print(f"Error generating feedback: {e}")       
         return "", "", "힘들었던 하루 끝에,"
     
-    # print("=== 피드백 ===")
-    # result = execute_chat(system_message_feedback, FEEDBACK_PARAMS)
-    # print(result)
-    # if result:
-    #     json_str = result['response_text']
-    #     json_str = json.loads(json_str)
-    #     print(json_str)
-
-    #     first_greeting = json_str['first_greeting']
-    #     text = json_str['text']
-    #     last_greeting = json_str['last_greeting']
-        
-    #     return first_greeting, text, last_greeting
-    #     # try:
-    #     #     feedback = "\n\n".join(letter.split("\n\n")[1:-1])
-    #     #     last_greeting = letter.split("\n\n")[-1].split("\n")[0].strip()
-    #     #     return letter, feedback, last_greeting
-    #     # except IndexError:
-    #     #     return result['response_text'], result['response_text'], "힘들었던 하루 끝에,"
-
-    # return "", "", "힘들었던 하루 끝에,"

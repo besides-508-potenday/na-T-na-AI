@@ -15,8 +15,8 @@ natna/
 ├── __init__.py
 ├── app.py
 ├── chat.py
-├── chat.py
 ├── docker-compose.yml
+├── Dockerfile
 ├── main.py
 ├── nginx.conf
 ├── poetry.lock
