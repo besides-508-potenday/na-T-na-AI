@@ -694,13 +694,13 @@ def generate_feedback(conversation, current_distance, chatbot_name, user_nicknam
                 letter = f"{first_greeting}\n\n{text}\n\n{last_greeting}\n\n{chatbot_name}가"
                 tts_path = generate_tts(letter, save_path="result.mp3")
 
-                # mp3 파일 base64 인코딩
-                audio_base64 = ""
-                if tts_path:
-                    with open(tts_path, "rb") as audio_file:
-                        audio_base64 = base64.b64encode(audio_file.read()).decode("utf-8")
+                # # mp3 파일 base64 인코딩
+                # audio_base64 = ""
+                # if tts_path:
+                #     with open(tts_path, "rb") as audio_file:
+                #         audio_base64 = base64.b64encode(audio_file.read()).decode("utf-8")
 
-                return first_greeting, text, last_greeting, audio_base64
+                return first_greeting, text, last_greeting, tts_path
 
             attempt += 1
             if attempt >= attempt_limit:
@@ -709,13 +709,13 @@ def generate_feedback(conversation, current_distance, chatbot_name, user_nicknam
                 letter = f"{first_greeting}\n\n{text}\n\n{last_greeting}\n\n{chatbot_name}가"
                 tts_path = generate_tts(letter, save_path="result.mp3")
 
-                # mp3 파일 base64 인코딩
-                audio_base64 = ""
-                if tts_path:
-                    with open(tts_path, "rb") as audio_file:
-                        audio_base64 = base64.b64encode(audio_file.read()).decode("utf-8")
+                # # mp3 파일 base64 인코딩
+                # audio_base64 = ""
+                # if tts_path:
+                #     with open(tts_path, "rb") as audio_file:
+                #         audio_base64 = base64.b64encode(audio_file.read()).decode("utf-8")
 
-                return first_greeting, text, last_greeting, audio_base64
+                return first_greeting, text, last_greeting, tts_path
 
     except Exception as e:
         print(f"Error generating feedback: {e}")       

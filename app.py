@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import time
 
 API_BASE = "http://localhost:8000"
 
@@ -141,6 +142,7 @@ if st.session_state.started:
 
                     if not data.get("verification", False):
                         st.warning("❗ 이상한 말 하지 마세요.")
+                        time.sleep(5)
                         st.session_state.conversation.pop()
                     
                     else:
@@ -181,7 +183,7 @@ if st.session_state.started:
                 last_greeting = feedback_output['last_greeting']
                 # print(feedback_output)
 
-                full_feedback = f"📨안녕 {st.session_state.user_nickname}!\n\n{feedback_text}\n\n{last_greeting}\n\n삐롱이가"
+                full_feedback = f"📨안녕 {st.session_state.user_nickname}!\n\n{feedback_text}\n\n{last_greeting}\n\n-{st.session_state.chatbot_name}-"
                 st.session_state.feedback = full_feedback
                 st.rerun()
 
@@ -191,3 +193,15 @@ if st.session_state.started:
         feedback_length = len(st.session_state.feedback)
         st.markdown(f"전체 편지 길이: {feedback_length}")
         st.info(st.session_state.feedback)
+
+if __name__ == "__main__":
+    import subprocess
+    import sys
+    
+    # Streamlit 앱 실행
+    subprocess.run([
+        sys.executable, "-m", "streamlit", "run", 
+        __file__, 
+        "--server.port=8502", 
+        "--server.address=0.0.0.0"
+    ])

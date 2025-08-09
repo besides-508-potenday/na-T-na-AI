@@ -7,11 +7,7 @@ import time
 import psutil
 import yaml
 import random
-import urllib.request
-import urllib.parse
 from typing import List, Dict, Any, Optional
-import uuid
-import base64
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -30,9 +26,6 @@ FEEDBACK_PARAMS = ALL_PARAMS["FEEDBACK_PARAMS"]
 host = os.environ.get("HOST")
 api_key = os.environ.get("CLOVASTUDIO_API_KEY")
 request_id = os.environ.get("REQUEST_ID")
-
-client_id = os.environ.get("CLIENT_ID")
-client_secret = os.environ.get("CLIENT_SECRET")
 
 API_CONFIG = {
     'host': host,
@@ -239,7 +232,6 @@ def generate_situation_and_quiz():
     - Personality: Shy, emotionally intense, seeking validation, and using relationship-centric language
     - Tone: Frequently using emotional words with emoji and employing a lingering tone to prompt a response, 반말
 
-
     Task1: Refer to example and Generate a realistic situation in the same format as the example.
 
     Here is the example situation:
@@ -247,10 +239,10 @@ def generate_situation_and_quiz():
 
     <Instructions>
     - Generate 1 situation that are difficult for a user who find it hard to empathize and express their feelings to respond to.
-    - Topic: friendship
+    - Topic: friendship (not love)
     - Do not generate situation that don't happen often.
     - Do not generate content related to the following serious or sensitive topics:
-    death, suicide, abuse, serious illness, depression, trauma, domestic violence, unemployment, etc.
+    death, suicide, abuse, serious illness, depression, trauma, domestic violence, unemployment, love, etc.
 
 
     Task2: Based on 1 new generated situation, Generate 10 emotional sentences.
@@ -274,7 +266,7 @@ def generate_situation_and_quiz():
     "sentences": [1.\n2.\n3.\n4.\n5.\n6.\n7.\n8.\n9.\n10].
     """
     for attempt in range(MAX_REACT_LENGTH):
-        print("=== 상황 및 문제 생성 ===")
+        print("\n=== 상황 및 문제 생성 ===")
         result = execute_chat(system_message_situation_and_quiz, SITUATION_QUIZ_PARAMS)
         print(result)
         
@@ -581,36 +573,6 @@ chatbot_name = "투닥이"
 user_nickname = "삐롱이"
 """
 
-def generate_tts(text, save_path = "sample.mp3"):
-    # encText = text.encode('utf-8')
-    data = urllib.parse.urlencode({
-        "speaker": "nwoof",
-        "volume": "0",
-        "speed": "3",
-        "pitch": "5",
-        "text": text,
-        "format": "mp3"
-    }).encode("utf-8")
-
-    url = "https://naveropenapi.apigw.ntruss.com/tts-premium/v1/tts"
-    request = urllib.request.Request(url)
-    request.add_header("X-NCP-APIGW-API-KEY-ID", client_id)
-    request.add_header("X-NCP-APIGW-API-KEY", client_secret)
-
-    response = urllib.request.urlopen(request, data=data)
-    rescode = response.getcode()
-
-    file_id = uuid.uuid4().hex[:16]
-    save_path = f"{file_id}.mp3"
-    if rescode == 200:
-        print("TTS mp3 save")
-        response_body = response.read()
-        with open(save_path, 'wb') as f:
-            f.write(response_body)
-        return save_path
-    else:
-        print("Error Code:", rescode)
-        return None
 
 def generate_feedback(conversation, current_distance, chatbot_name, user_nickname):
     if current_distance < 2:
@@ -691,17 +653,30 @@ def generate_feedback(conversation, current_distance, chatbot_name, user_nicknam
             if attempt >= attempt_limit:
                 # 최대 시도 횟수 도달 시 가장 마지막 결과로 탈출
                 print("⚠️ 최대 시도 횟수 도달. 길이 조건을 충족하지 못했지만 진행합니다.")
-                tts_path = generate_tts(text, save_path="result.mp3")
-
-                # mp3 파일 base64 인코딩 (원한다면)
-                audio_base64 = ""
-                if tts_path:
-                    with open(tts_path, "rb") as audio_file:
-                        audio_base64 = base64.b64encode(audio_file.read()).decode("utf-8")
-
-                return first_greeting, text, last_greeting, audio_base64
+                return first_greeting, text, last_greeting
 
     except Exception as e:
         print(f"Error generating feedback: {e}")       
-        return "", "", "힘들었던 하루 끝에,", ""
+        return "", "", "힘들었던 하루 끝에,"
+    
+    # print("=== 피드백 ===")
+    # result = execute_chat(system_message_feedback, FEEDBACK_PARAMS)
+    # print(result)
+    # if result:
+    #     json_str = result['response_text']
+    #     json_str = json.loads(json_str)
+    #     print(json_str)
 
+    #     first_greeting = json_str['first_greeting']
+    #     text = json_str['text']
+    #     last_greeting = json_str['last_greeting']
+        
+    #     return first_greeting, text, last_greeting
+    #     # try:
+    #     #     feedback = "\n\n".join(letter.split("\n\n")[1:-1])
+    #     #     last_greeting = letter.split("\n\n")[-1].split("\n")[0].strip()
+    #     #     return letter, feedback, last_greeting
+    #     # except IndexError:
+    #     #     return result['response_text'], result['response_text'], "힘들었던 하루 끝에,"
+
+    # return "", "", "힘들었던 하루 끝에,"

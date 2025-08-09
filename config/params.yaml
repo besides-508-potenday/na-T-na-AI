@@ -52,8 +52,8 @@ SITUATION_QUIZ:
           type: array
           items:
             type: string
-          minItems: 10
-          maxItems: 10
+          minItems: 5
+          maxItems: 5
       required:
         - situation
         - sentences

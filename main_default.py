@@ -15,130 +15,15 @@ from pathlib import Path
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import contextlib
-import uuid
 
 print(os.getcwd())
 # os.chdir('/Users/hongbikim/Dev/natna/')
 
-from chat import generate_situation_and_quiz, generate_verification_and_score, generate_response, improved_question, generate_feedback
+from natna.chat_without_tts import generate_situation_and_quiz, generate_verification_and_score, generate_response, improved_question, generate_feedback
 
 # 로깅 설정 모듈
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 import logging.config
-# =============================================================================
-# JSON 대화 기록 관리 클래스
-# =============================================================================
-class ConversationLogger:
-    def __init__(self, log_dir: str = "conversation_logs"):
-        self.log_dir = Path(log_dir)
-        self.log_dir.mkdir(exist_ok=True)
-        self.sessions = {}  # session_id -> conversation_data
-        self.user_sessions = {}  # user_nickname -> session_id (최근 세션 추적)
-    
-    def get_or_create_session(self, user_nickname: str, chatbot_name: str) -> str:
-        """기존 세션을 찾거나 새로운 세션을 생성"""
-        # 기존 세션이 있는지 확인
-        if user_nickname in self.user_sessions:
-            session_id = self.user_sessions[user_nickname]
-            if session_id in self.sessions:
-                return session_id
-        
-        # 새로운 세션 생성
-        return self.create_session(user_nickname, chatbot_name)
-    
-    def create_session(self, user_nickname: str, chatbot_name: str) -> str:
-        """새로운 대화 세션 생성"""
-        session_id = str(uuid.uuid4())
-        timestamp = datetime.now().isoformat()
-        
-        session_data = {
-            "session_id": session_id,
-            "user_nickname": user_nickname,
-            "chatbot_name": chatbot_name,
-            "start_time": timestamp,
-            "current_distance": 10,  # 초기값
-            "situation": "",
-            "quiz_list": [],
-            "conversation_log": [],
-            "scores": [],
-            "reactions": [],
-            "improved_quizzes": [],
-            "verification_results": [],
-            "final_feedback": {},
-            "end_time": None
-        }
-        
-        self.sessions[session_id] = session_data
-        self.user_sessions[user_nickname] = session_id  # 사용자별 최근 세션 추적
-        self._save_session(session_id)
-        return session_id
-    
-    def update_situation(self, session_id: str, situation: str, quiz_list: List[str]):
-        """상황 및 퀴즈 리스트 업데이트"""
-        if session_id in self.sessions:
-            self.sessions[session_id]["situation"] = situation
-            self.sessions[session_id]["quiz_list"] = quiz_list
-            self._save_session(session_id)
-    
-    def add_conversation_turn(self, session_id: str, user_message: str, bot_message: str, 
-                            score: int, react: str, improved_quiz: str, verification: bool):
-        """대화 턴 추가"""
-        if session_id in self.sessions:
-            session_data = self.sessions[session_id]
-            
-            # current_distance 업데이트
-            if score == 0:
-                session_data["current_distance"] -= 1
-            # score == 1이면 거리 유지
-            
-            # 대화 기록 추가
-            turn_data = {
-                "timestamp": datetime.now().isoformat(),
-                "user_message": user_message,
-                "bot_message": bot_message,
-                "score": score,
-                "react": react,
-                "improved_quiz": improved_quiz,
-                "verification": verification,
-                "current_distance": session_data["current_distance"]
-            }
-            
-            session_data["conversation_log"].append(turn_data)
-            session_data["scores"].append(score)
-            session_data["reactions"].append(react)
-            session_data["improved_quizzes"].append(improved_quiz)
-            session_data["verification_results"].append(verification)
-            
-            self._save_session(session_id)
-    
-    def add_feedback(self, session_id: str, feedback: str, last_greeting: str):
-        """최종 피드백 추가"""
-        if session_id in self.sessions:
-            self.sessions[session_id]["final_feedback"] = {
-                "feedback": feedback,
-                "last_greeting": last_greeting,
-                "timestamp": datetime.now().isoformat()
-            }
-            self.sessions[session_id]["end_time"] = datetime.now().isoformat()
-            self._save_session(session_id)
-    
-    def get_session_data(self, session_id: str) -> Dict:
-        """세션 데이터 조회"""
-        return self.sessions.get(session_id, {})
-    
-    def _save_session(self, session_id: str):
-        """세션을 JSON 파일로 저장"""
-        if session_id in self.sessions:
-            file_path = self.log_dir / f"{session_id}.json"
-            with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(self.sessions[session_id], f, ensure_ascii=False, indent=2)
-    
-    def get_all_sessions(self) -> List[Dict]:
-        """모든 세션 데이터 조회"""
-        return list(self.sessions.values())
-
-# 전역 conversation logger 인스턴스
-conversation_logger = ConversationLogger()
 
 # =============================================================================
 # 로깅 설정
@@ -354,7 +239,13 @@ origins = [
     "http://localhost:80",
 ]
 
-
+# origins = [
+#     "https://yourdomain.com",       # 실제 프론트엔드 도메인
+#     "https://api.yourdomain.com",   # API 도메인
+#     "https://petstore.swagger.io",  # Swagger (필요시)
+#     # 개발환경은 제거하거나 환경변수로 분리
+# ]
+# CORS 미들웨어 추가
 app.add_middleware(
     CORSMiddleware,
     allow_origins= origins, # ["*"],  # 프로덕션에서는 특정 도메인으로 제한
@@ -431,18 +322,12 @@ async def situation(request: Situation, background_tasks: BackgroundTasks):
         logger.info(f"Starting situation generation for user: {nickname} with chatbot: {chatbot_name}")
         print(f"=== SITUATION ENDPOINT CALLED ===")  # 디버깅용
         print(f"User: {nickname}, Chatbot: {chatbot_name}")  # 디버깅용
-
-        # 자동으로 세션 생성 (기존 세션이 있으면 재사용)
-        session_id = conversation_logger.get_or_create_session(nickname, chatbot_name)
         
         # 비동기로 퀴즈 생성
         situation, quiz_list = await async_generate_situation_and_quiz()
         logger.info(f"Situation generated: {situation}")
         logger.info(f"Quiz list generated for user: {nickname}")
         print(f"Quiz list generated: {quiz_list}")  # 디버깅용
-
-        # 세션에 상황과 퀴즈 리스트 저장
-        conversation_logger.update_situation(session_id, situation, quiz_list)
 
         return {"quiz_list": quiz_list}
         
@@ -467,9 +352,6 @@ async def conversation(request: Conversation):
         print(f"=== CONVERSATION ENDPOINT CALLED ===")  # 디버깅용
         print(f"User: {user_nickname}, Chatbot: {chatbot_name}")  # 디버깅용
 
-        # 현재 사용자의 세션 ID 가져오기
-        session_id = conversation_logger.get_or_create_session(user_nickname, chatbot_name)
-
         # 비동기로 응답 생성
         try:
             verification, score = await async_generate_verification_and_score(
@@ -484,16 +366,8 @@ async def conversation(request: Conversation):
             except Exception as e:
                 logger.error(f"Retry failed: {str(e)}", exc_info=True)
                 raise HTTPException(status_code=500, detail="Internal server error")
-            
         if verification == False:
             print(f"Verification failed, saving with score 0")  # 디버깅용
-
-            # 실패한 경우에도 기록
-            user_message = conversation[-1] if conversation else ""
-            conversation_logger.add_conversation_turn(
-                session_id, user_message, "", 0, "", "", False
-            )
-
             return {
                 "react": "",
                 "score": 0,
@@ -501,16 +375,11 @@ async def conversation(request: Conversation):
                 "verification" : False
             }
         else:
+            print(f"{score}점인 {conversation[-1]}에 대한 반응 생성")
             statement = await async_generate_response(conversation, score, chatbot_name, user_nickname)
             improved_quiz = await async_improved_question(quiz_list, conversation, statement, chatbot_name)
 
-            # 성공한 경우 기록
-            user_message = conversation[-1] if conversation else ""
-            bot_message = f"{statement} {improved_quiz}".strip()
-            conversation_logger.add_conversation_turn(
-                session_id, user_message, bot_message, score, statement, improved_quiz, True
-            )
-             
+
             return {
                 "react": statement,
                 "score": score,
@@ -536,42 +405,19 @@ async def feedback(request: Feedback):
         logger.info(f"Processing feedback for user: {user_nickname} with chatbot: {chatbot_name}, distance: {current_distance}")
         print(f"=== FEEDBACK ENDPOINT CALLED ===")  # 디버깅용
         print(f"User: {user_nickname}, Chatbot: {chatbot_name}")  # 디버깅용
-
-        # 현재 사용자의 세션 ID 가져오기
-        session_id = conversation_logger.get_or_create_session(user_nickname, chatbot_name)
         
         # 비동기로 피드백 생성
-        first_greeting, text, last_greeting, audio_base64 = await async_generate_feedback(conversation, current_distance, chatbot_name, user_nickname)
-
-        # 피드백 기록
-        conversation_logger.add_feedback(session_id, text, last_greeting)
+        first_greeting, text, last_greeting = await async_generate_feedback(conversation, current_distance, chatbot_name, user_nickname)
 
         return {
                 "feedback": text,
-                "last_greeting": last_greeting,
-                "feedback_mp3_file": audio_base64
+                "last_greeting": last_greeting
                 }
         
     except Exception as e:
         logger.error(f"Error in feedback endpoint: {str(e)}", exc_info=True)
         print(f"Error in feedback endpoint: {str(e)}")  # 디버깅용
         raise HTTPException(status_code=500, detail="Internal server error")
-
-# =============================================================================
-# 추가: 대화 기록 조회 엔드포인트
-# =============================================================================
-@app.get("/conversations/{session_id}")
-async def get_conversation(session_id: str):
-    """특정 세션의 대화 기록 조회"""
-    session_data = conversation_logger.get_session_data(session_id)
-    if not session_data:
-        raise HTTPException(status_code=404, detail="Session not found")
-    return session_data
-
-@app.get("/conversations")
-async def get_all_conversations():
-    """모든 대화 기록 조회"""
-    return conversation_logger.get_all_sessions()
 
 # =============================================================================
 # 시작점
