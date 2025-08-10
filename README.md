@@ -44,10 +44,21 @@ natna/
     > 음색 : 2\
     > 높낮이 : 1
 
-    <audio controls>
-    <source src="data/tudak_voice.mp3.mp3" type="audio/mpeg">
-    브라우저가 오디오 태그를 지원하지 않습니다.
-    </audio> 
+    <div align="center">
+
+    <table>
+    <tr>
+    <td>
+    <a href="https://github.com/besides-508-potenday/na-T-na-AI/tree/main/data/tudak_voice.mp3">
+    <img src="https://img.shields.io/badge/🎵_Play_Audio-투닥이_보이스-FF69B4?style=for-the-badge&labelColor=blue" alt="Play Audio"/>
+    </a>
+    <br/>
+    </td>
+    </td>
+    </tr>
+    </table>
+
+    </div>
 
 <br>
 
