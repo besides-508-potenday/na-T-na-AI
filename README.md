@@ -1,12 +1,14 @@
 # 나 T나??
 > T 성향을 가진 사람들이 감정 공감을 훈련해볼 수 있는 AI 챗봇 기반의 감정 시뮬레이션 서비스
 
+![pipeline1](data/overview.png)
+
 <br>
 
-### 🗒️ [Notion](https://www.notion.so/T-team-23f3cff2c9eb807c8d6ec04a53afbaeb) | 🤖 [Github](https://github.com/besides-508-potenday)
+### 🗒️ [Notion](https://ubiquitous-blackberry-1d3.notion.site/2483cff2c9eb805eb6edc5cc93cf8e2b?pvs=74) | 🤖 [Github](https://github.com/besides-508-potenday)
 
 ---
-## 1.Pipeline
+## 1.파이프라인
 ```
 natna/
 ├── config
@@ -23,13 +25,30 @@ natna/
 └── pyproject.toml
 ```
 
-- Pipeline
+- AI Pipeline
 
-    ![pipeline1](Images/AI_pipeline.png)
+    ![pipeline1](data/AI_pipeline.png) 
 
 - Output
 
-    ![pipeline2](Images/AI_pipeline_with_output.png)
+    ![pipeline2](data/AI_pipeline_with_output.png)
+
+### CLOVA 활용
+1. HyperClova X
+    > model name: HCX-007
+
+<br>
+
+2. CLOVA Voice (TTS)
+    > Voice: 멍멍이\
+    > 음색 : 2\
+    > 높낮이 : 1
+
+    <audio controls>
+    <source src="data/tudak_voice.mp3.mp3" type="audio/mpeg">
+    브라우저가 오디오 태그를 지원하지 않습니다.
+    </audio> 
+
 <br>
 
 ## 2. API
@@ -39,7 +58,8 @@ natna/
 <br>
 
 - [✔️] FastAPI
-- Build Docker Image
+- [✔️] Build Docker Image
+- [✔️] Deploy to AWS 
 
 <br>
 <!-- 
@@ -60,15 +80,15 @@ natna/
 
 <br>
  -->
-
+<!-- 
 ## 3. TEST sample (`app_mock.py`)
 - 상황 및 문제
-![상황 및 문제](Images/sample1-1.png)
+![상황 및 문제](data/sample1-1.png)
 <br>
 
 - 대화 흐름
-![대화1](Images/sample1-3.png)
-![대화2](Images/sample1-2.png)
+![대화1](data/sample1-3.png)
+![대화2](data/sample1-2.png)
 
 
 ## 4. To-Do
@@ -87,4 +107,4 @@ natna/
 
 4️⃣ 배포
 - [ ] AWS에 배포
-- [ ] TEST
+- [ ] TEST -->
