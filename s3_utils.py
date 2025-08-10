@@ -27,7 +27,7 @@ def upload_audio_base64(base64_str: str, key: str) -> str:
             Key=key,                   # 예: f"chatrooms/results/{chatroom_id}/letter_voice.mp3"
             Body=audio_bytes,
             ContentType="audio/mpeg",  # 중요: 브라우저 재생용
-            # ACL="public-read",       # 퍼블릭로 만들려면 주석 해제 (버킷 정책 허용 필요)
+            ACL="public-read",       # 퍼블릭로 만들려면 주석 해제 (버킷 정책 허용 필요)
             # ServerSideEncryption="AES256",  # 원하면 서버측 암호화
         )
         # 정적 URL 형식 (버킷이 퍼블릭 읽기이면 바로 접근 가능)
