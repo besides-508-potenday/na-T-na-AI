@@ -25,7 +25,7 @@ import threading
 
 from s3_utils import upload_audio_base64, create_presigned_url
 
-from chat import generate_situation_and_quiz, generate_verification_and_score, generate_response, improved_question, generate_feedback
+from chat2 import generate_situation_and_quiz, generate_verification_and_score, generate_response, generate_feedback
 # from chat_tudak import generate_situation_and_quiz, generate_verification_and_score, generate_response, improved_question, generate_feedback
 
 # 로깅 설정 모듈
@@ -626,7 +626,7 @@ app = FastAPI(
 
 origins = [
     "https://petstore.swagger.io",  # Swagger 공식 UI
-    "http://localhost:8000",        # 로컬 접근도 허용
+    "http://localhost:8001",        # 로컬 접근도 허용
     "http://localhost",
     "http://localhost:80",
 ]
@@ -681,15 +681,15 @@ async def async_generate_verification_and_score(conversation, chatbot_name, user
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(executor, generate_verification_and_score, conversation, chatbot_name, user_nickname)
 
-async def async_generate_response(conversation, score, chatbot_name, user_nickname):
+async def async_generate_response(conversation, score, chatbot_name, user_nickname, quiz_list):
     """비동기로 응답 생성"""
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(executor, generate_response, conversation, score, chatbot_name, user_nickname)
+    return await loop.run_in_executor(executor, generate_response, conversation, score, chatbot_name, user_nickname, quiz_list)
 
 async def async_improved_question(quiz_list, conversation, react, chatbot_name):
     """비동기로 개선된 질문 생성"""
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(executor, improved_question, quiz_list, conversation, react, chatbot_name)
+    return await loop.run_in_executor(executor, quiz_list, conversation, react, chatbot_name)
 
 async def async_generate_feedback(conversation, current_distance, chatbot_name, user_nickname):
     """비동기로 피드백 생성"""
@@ -794,29 +794,23 @@ async def conversation(request: Conversation):
                 "verification" : False
             }
         else:
-            if len(conversation) == 10:
+            if len(conversation) == 20:
                 print("SEND ONLY Final score...")
-                total = ""
-                for i in range(0,len(conversation)-1,2):
-                    total += f"투닥이: {conversation[i]}\n"
-                    total += f"{user_nickname}: {conversation[i+1]}\n"
-                print(total)
                 return {
                     "react": "",
                     "score": score,
                     "improved_quiz": "",
-                    "verification" : True
+                    "verification" : False
                 }
 
 
             print(f"✅ Verification successful! Generating responses...")
 
-            statement = await async_generate_response(conversation, score, chatbot_name, user_nickname)
-            improved_quiz = await async_improved_question(quiz_list, conversation, statement, chatbot_name)
+            react, statement = await async_generate_response(conversation, score, chatbot_name, user_nickname, quiz_list)
 
             # 성공한 경우 기록
             user_message = conversation[-1] if conversation else ""
-            bot_message = f"{statement} {improved_quiz}".strip()
+            bot_message = f"{react} {statement}".strip()
 
             conversation_logger.add_conversation(
                 user_nickname = user_nickname,
@@ -827,15 +821,15 @@ async def conversation(request: Conversation):
                 bot_message=bot_message,
                 score=score,
                 reason_score= reason_score,
-                react=statement,
-                improved_quiz=improved_quiz,
+                react=react,
+                improved_quiz=statement,
                 verification=verification
             )
 
             return {
-                "react": statement,
+                "react": react,
                 "score": score,
-                "improved_quiz": improved_quiz,
+                "improved_quiz": statement,
                 "verification" : True
             }
         
@@ -922,9 +916,9 @@ if __name__ == "__main__":
         print(route.path)
     # 프로덕션 환경용 설정
     uvicorn.run(
-        "main:app",
+        "main_tudak:app",
         host="0.0.0.0",
-        port=8000,
+        port=8001,
         reload=False,        # 프로덕션에서는 반드시 False
         workers=4,           # CPU 코어 수에 맞춰 조정 (일반적으로 2 * CPU 코어 + 1)
         access_log=True,     # 프로덕션에서는 로그 활성화

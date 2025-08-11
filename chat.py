@@ -342,9 +342,11 @@ score = 0
 
 # 2. conversation
 def generate_verification_and_score(conversation, chatbot_name, user_nickname):
+    print(f"대화리스트:{conversation}")
     ref = ""
     ref += f"- {chatbot_name}: {conversation[-2]}\n"
     ref += f"- {user_nickname}: {conversation[-1]}\n"
+    
     print("\n== 이전 대화 ==")
     print(ref)
     system_message_verification_score = f"""You are an emotion-based chatbot that converses with T-type users who are not good at expressing their emotions.
@@ -428,7 +430,7 @@ def generate_response(conversation, score, chatbot_name, user_nickname):
     print(ref)
     # 리액션
     if score == 0:
-        tone = "disappointment or sad"
+        tone = "with disappointment or sad"
     else:
         tone = ""
 
@@ -447,7 +449,7 @@ def generate_response(conversation, score, chatbot_name, user_nickname):
 
     Your goal is:
     <statement>
-    Respond emotionally with {tone} to {user_nickname}'s last comment.
+    Respond emotionally {tone} to {user_nickname}'s last comment.
     - {chatbot_name}:
 
     Return your statement without any additional explanation or text.
@@ -465,12 +467,12 @@ def generate_response(conversation, score, chatbot_name, user_nickname):
             else:
                 result = execute_react(system_message_react_and_improved, conversation[-1],  REACT_PARAMS)
             if result:
-                print(f"{result['response_text']}")
+                # print(f"{result['response_text']}")
                 react = result['response_text']
 
                 if react[:len(chatbot_name)] == chatbot_name:
                     react = react[len(chatbot_name)+1:].strip()
-
+                print(react)
             if len(react) <= MAX_REACT_LENGTH:
                 print(f"리액션 길이: {len(react)}")
                 return react

@@ -109,3 +109,69 @@ FEEDBACK_PARAMS:
         - first_greeting
         - text
         - last_greeting
+
+SITUATION:
+  topP: 0.8
+  topK: 0
+  maxCompletionTokens: 1024
+  temperature: 0.7
+  repetitionPenalty: 1.1
+  seed: 0
+  includeAiFilters: false
+  thinking:
+    effort: none
+  responseFormat:
+    type: json
+    schema:
+      type: object
+      properties:
+        situation:
+          type: string
+      required:
+        - situation
+
+REACT_NEXT:
+  topP: 0.8
+  topK: 0
+  maxCompletionTokens: 1024
+  temperature: 0.7
+  repetitionPenalty: 1.1
+  seed: 0
+  includeAiFilters: false
+  thinking:
+    effort: none
+  responseFormat:
+    type: json
+    schema:
+      type: object
+      properties:
+        react:
+          type: string
+        next_statement:
+          type: string
+      required:
+        - react
+        - next_statement
+
+REACT_IMPROVED:
+  topP: 0.8
+  topK: 0
+  maxCompletionTokens: 1024
+  temperature: 0.7
+  repetitionPenalty: 1.1
+  seed: 0
+  includeAiFilters: false
+  thinking:
+    effort: none
+  responseFormat:
+    type: json
+    schema:
+      type: object
+      properties:
+        respond:
+          type: string
+        improved_sentence:
+          type: string
+      required:
+        - respond
+        - improved_sentence
