@@ -13,7 +13,7 @@
 natna/
 ├── config
 │     └── params.yaml
-├── logs
+├── conversation_logs
 ├── __init__.py
 ├── app.py
 ├── chat.py
@@ -22,7 +22,8 @@ natna/
 ├── main.py
 ├── nginx.conf
 ├── poetry.lock
-└── pyproject.toml
+├── pyproject.toml
+└── s3_utils.py
 ```
 
 - AI Pipeline
